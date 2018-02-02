@@ -11,6 +11,8 @@ Cheers!
 Daniel Tavernier (tabernarious)
 
 ## Related Posts
+* https://github.com/tabernarious/f5-automated-backup-iapp
+* https://devcentral.f5.com/codeshare/f5-iapp-automated-backup-1114
 * https://devcentral.f5.com/articles/f5-automated-backups-the-right-way
 * https://devcentral.f5.com/articles/f5-automated-backups-the-right-way
 * https://devcentral.f5.com/codeshare/complete-f5-automated-backup-solution?lc=1
