@@ -1,5 +1,3 @@
-#TMSH-VERSION: 13.1.0.1
-
 # iApp VERSIONS (From what I gathered perusing DevCentral)
 # ~v2.0  - 20140312 - Initially posted releases (v11.4.0-11.6.x? compatibility). (Developed/posted by Thomas Schockaert)
 # v2.1.1 - 20160916 - Retooled SMB upload from smbclient to "mount -t cifs" (v12.1+ compatibility). (Developed/posted by MAG)
