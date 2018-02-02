@@ -37,6 +37,8 @@
 # - Automatic pruning is not 
 
 #REFERENCES
+# Git Repository for f5-automated-backup-iapp ( https://github.com/tabernarious/f5-automated-backup-iapp )
+# F5 iApp Automated Backup ( https://devcentral.f5.com/codeshare/f5-iapp-automated-backup-1114 )
 # F5 Automated Backups - The Right Way ( https://devcentral.f5.com/articles/f5-automated-backups-the-right-way )
 # PASTEBIN f5.automated_backup_v2.0 ( https://pastebin.com/YbDj3eMN )
 # Complete F5 Automated Backup Solution ( https://devcentral.f5.com/codeshare/complete-f5-automated-backup-solution?lc=1 )
