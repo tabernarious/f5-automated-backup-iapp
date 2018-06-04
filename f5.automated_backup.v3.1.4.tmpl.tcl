@@ -43,6 +43,7 @@
 # v3.1.4 - 20180604 - Fixed can't read "::destination_parameters__pruning_mode" errors using [info exists ...].
 #                   - Removed LTM from "Required Modules" list; now no modules are required.
 #                   - SMB/CIFS now directly mounts the target directory instead of the mount point. This allows administrators to deny access to intermediate directories.
+#                   - Set the pruning_keep_amount default to 3 (previously no default existed).
 
 # KNOWN ISSUES and REQUESTS
 # - Passwords with special characters may cause tcl or bash errors; a backslash must be entered by the user in front of some special character for proper escaping.
