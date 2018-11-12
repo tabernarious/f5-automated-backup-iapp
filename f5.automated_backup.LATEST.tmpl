@@ -28,13 +28,15 @@
 #                   - Removed old SFTP sections and references (now handled through SCP/SFTP).
 #                   - Adjusted logging: added "sleep 1" to ensure proper logging; added $backup_directory to log message.
 #                   - Adjusted some help messages.
+# v3.1.1 - 20180331 - Removed TCL double substitution warnings
+#                   - Fixed duplication of UCS file extension when uploading to FTP
 
 # KNOWN ISSUES
 # - Some tcl warnings when loading configuration.
 # - Passwords with special characters may cause tcl or bash errors; a backslash must be entered by the user in front of each special character for proper escaping.
 # - F5 TMOS 11.4.1 - 11.5.3 untested and may work.
 # - BACKUPFILESCRIPTEXTENSION is not understood and may not be needed.
-# - Automatic pruning is not 
+# - Automatic pruning is not
 
 #REFERENCES
 # Git Repository for f5-automated-backup-iapp ( https://github.com/tabernarious/f5-automated-backup-iapp )
@@ -50,7 +52,7 @@
 cli admin-partitions {
     update-partition Common
 }
-sys application template /Common/f5.automated_backup.v3.1.0 {
+sys application template /Common/f5.automated_backup.v3.1.1 {
     actions {
         definition {
             html-help {
@@ -201,9 +203,7 @@ sys application template /Common/f5.automated_backup.v3.1.0 {
                             # Clean, recreate, run and reclean a custom bash script that will perform the FTP upload
                             exec rm -f $scriptfile
                             # Updated command v2.2.4 to force binary transfer.
-                            exec echo -e "ftp_function()\n{\n\tf5masterkey=\$(f5mku -K)\n\tusername=\$(echo \"ENCRYPTEDUSERNAME\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\n\tpassword=\$(echo \"ENCRYPTEDPASSWORD\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\n\tserver=\$(echo \"ENCRYPTEDSERVER\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\n\tdirectory=\$(echo \"ENCRYPTEDDIRECTORY\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\n\n\tftp_return=\$(ftp -n \${server} << END_FTP\nquote USER \${username}\nquote PASS \${password}\nbinary\nput BACKUPDIRECTORY/${fname}BACKUPFILESCRIPTEXTENSION \${directory}/${fname}BACKUPFILESCRIPTEXTENSION\nquit\nEND_FTP\n)\n\tif \[ \"\$ftp_return\" == \"\" \]\n\tthen\n\t\treturn 0\n\telse\n\t\techo \"\$ftp_return\" >> /var/tmp/scriptd.out\n\t\treturn 1\n\tfi\n}\n\nftp_function" > $scriptfile
-                            # Original command which allowed ascii transfer.
-                            #exec echo -e "put()\n{\n\tfields=\"username password server directory\"\n\ti=1\n\tf5masterkey=\$(f5mku -K)\n\tfor current_field in \$fields ; do\n\t\tsedcommand=\"\${i}p\"\n\t\tcurrent_encrypted_value=\$(sed -n \"\$sedcommand\" $configfile)\n\t\tcurrent_decrypted_value=\$(echo \"\$current_encrypted_value\" | openssl aes-256-ecb -salt -a -d -k \$f5masterkey)\n\t\teval \"\$current_field=\$current_decrypted_value\"\n\t\tlet i=\$i+1\n\t\tunset current_encrypted_value current_decrypted_value sedcommand\n\tdone\n\tftp -n \${server} << END_FTP\nquote USER \${username}\nquote PASS \${password}\nput BACKUPDIRECTORY/${fname}BACKUPFILESCRIPTEXTENSION \${directory}/${fname}BACKUPFILESCRIPTEXTENSION\nquit\nEND_FTP\n\treturn \$?\n}\n\nput" > $scriptfile
+                            exec echo -e "ftp_function()\n{\n\tf5masterkey=\$(f5mku -K)\n\tusername=\$(echo \"ENCRYPTEDUSERNAME\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\n\tpassword=\$(echo \"ENCRYPTEDPASSWORD\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\n\tserver=\$(echo \"ENCRYPTEDSERVER\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\n\tdirectory=\$(echo \"ENCRYPTEDDIRECTORY\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\n\n\tftp_return=\$(ftp -n \${server} << END_FTP\nquote USER \${username}\nquote PASS \${password}\nbinary\nput BACKUPDIRECTORY/${fname_noext}BACKUPFILESCRIPTEXTENSION \${directory}/${fname_noext}BACKUPFILESCRIPTEXTENSION\nquit\nEND_FTP\n)\n\tif \[ \"\$ftp_return\" == \"\" \]\n\tthen\n\t\treturn 0\n\telse\n\t\techo \"\$ftp_return\" >> /var/tmp/scriptd.out\n\t\treturn 1\n\tfi\n}\n\nftp_function" > $scriptfile
                             exec chmod +x $scriptfile
                             exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY (FTP) STARTING" >> /var/tmp/scriptd.out
                             exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY (FTP) STARTING"
@@ -308,7 +308,7 @@ sys application template /Common/f5.automated_backup.v3.1.0 {
                     #Create the handlers
                     if { $freq eq "Every X Minutes" } {
                         set everyxminutes $::backup_schedule__everyxminutes_value
-                        set interval [expr $everyxminutes*60]
+                        set interval [expr {$everyxminutes*60}]
                         set cdate [clock format [clock seconds] -format "%Y-%m-%d:%H:%M"]
                         iapp::conf create sys icall handler periodic f5.automated_backup__${tmsh::app_name}-handler \{ \
                         interval $interval \
@@ -317,7 +317,7 @@ sys application template /Common/f5.automated_backup.v3.1.0 {
                     }
                     elseif { $freq eq "Every X Hours" } {
                         set everyxhours $::backup_schedule__everyxhours_value
-                        set interval [expr $everyxhours*3600]
+                        set interval [expr {$everyxhours*3600}]
                         set minutes $::backup_schedule__everyxhours_min_select
                         set cdate [clock format [clock seconds] -format "%Y-%m-%d:%H"]
                         iapp::conf create sys icall handler periodic f5.automated_backup__${tmsh::app_name}-handler \{ \
@@ -327,7 +327,7 @@ sys application template /Common/f5.automated_backup.v3.1.0 {
                     }
                     elseif { $freq eq "Every X Days" } {
                         set everyxdays $::backup_schedule__everyxdays_value
-                        set interval [expr $everyxdays*86400]
+                        set interval [expr {$everyxdays*86400}]
                         set hours [lindex [split $::backup_schedule__everyxdays_time ":"] 0]
                         set minutes [lindex [split $::backup_schedule__everyxdays_time ":"] 1]
                         set cdate [clock format [clock seconds] -format "%Y-%m-%d"]
@@ -338,7 +338,7 @@ sys application template /Common/f5.automated_backup.v3.1.0 {
                     }
                     elseif { $freq eq "Every X Weeks" } {
                         set everyxweeks $::backup_schedule__everyxweeks_value
-                        set interval [expr $everyxweeks*604800]
+                        set interval [expr {$everyxweeks*604800}]
                         set hours [lindex [split $::backup_schedule__everyxweeks_time ":"] 0]
                         set minutes [lindex [split $::backup_schedule__everyxweeks_time ":"] 1]
                         ## Get day of week info for setting first-occurrence on weekly handler from iApp input
@@ -355,8 +355,8 @@ sys application template /Common/f5.automated_backup.v3.1.0 {
                         set sday_num $dowmap($sday_name)
                         set cday_name [clock format [clock seconds] -format "%A"]
                         set cday_num $dowmap($cday_name)
-                        set date_offset [expr 86400*($sday_num - $cday_num)]
-                        set date_final [clock format [expr [clock seconds] + $date_offset] -format "%Y-%m-%d"]
+                        set date_offset [expr {86400*($sday_num - $cday_num)}]
+                        set date_final [clock format [expr {[clock seconds] + $date_offset}] -format "%Y-%m-%d"]
                         iapp::conf create sys icall handler periodic f5.automated_backup__${tmsh::app_name}-handler \{ \
                             interval $interval \
                             first-occurrence $date_final:$hours:$minutes:00 \
@@ -364,11 +364,11 @@ sys application template /Common/f5.automated_backup.v3.1.0 {
                     }
                     elseif { $freq eq "Every X Months" } {
                         set everyxmonths $::backup_schedule__everyxmonths_value
-                        set interval [expr 60*60*24*365]
+                        set interval [expr {60*60*24*365}]
                         set dom $::backup_schedule__everyxmonths_dom_select
                         set hours [lindex [split $::backup_schedule__everyxmonths_time ":"] 0]
                         set minutes [lindex [split $::backup_schedule__everyxmonths_time ":"] 1]
-                        for { set month 1 } { $month < 13 } { set month [expr $month+$everyxmonths] } {
+                        for { set month 1 } { $month < 13 } { set month [expr {$month+$everyxmonths}] } {
                             set cdate [clock format [clock seconds] -format "%Y-$month-$dom"]
                             iapp::conf create sys icall handler periodic f5.automated_backup__${tmsh::app_name}-month_${month}-handler \{ \
                             interval $interval \
@@ -393,8 +393,8 @@ sys application template /Common/f5.automated_backup.v3.1.0 {
                             set sday_num $dowmap($sday_name)
                             set cday_name [clock format [clock seconds] -format "%A"]
                             set cday_num $dowmap($cday_name)
-                            set date_offset [expr 86400*($sday_num - $cday_num)]
-                            set date_final [clock format [expr [clock seconds] + $date_offset] -format "%Y-%m-%d"]
+                            set date_offset [expr {86400*($sday_num - $cday_num)}]
+                            set date_final [clock format [expr {[clock seconds] + $date_offset}] -format "%Y-%m-%d"]
                             iapp::conf create sys icall handler periodic f5.automated_backup__${tmsh::app_name}-handler-$sday_name \{ \
                                 interval 604800 \
                                 first-occurrence $date_final:$hours:$minutes:00 \
