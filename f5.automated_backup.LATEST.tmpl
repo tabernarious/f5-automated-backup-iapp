@@ -40,11 +40,16 @@
 #                   - Fixed SCF pruning (previously only built for ucs file extension); also cleans up scf.tar files.
 #                   - Fixed SCF generation with "no-passphrase" without which produces errors in 13.1.0.5 (not tested in any other versions).
 #                   - Added pruning option for SMB/CIFS.
+# v3.1.4 - 20180604 - Fixed can't read "::destination_parameters__pruning_mode" errors using [info exists ...].
+#                   - Removed LTM from "Required Modules" list; now no modules are required.
+#                   - SMB/CIFS now directly mounts the target directory instead of the mount point. This allows administrators to deny access to intermediate directories.
+#                   - Set the pruning_keep_amount default to 3 (previously no default existed).
 
 # KNOWN ISSUES and REQUESTS
 # - Passwords with special characters may cause tcl or bash errors; a backslash must be entered by the user in front of some special character for proper escaping.
 # - F5 TMOS 11.4.1 - 11.5.3 untested and may work.
 # - Add automatic pruning for FTP and SFTP/SCP.
+# - Using a 4096 bit private key for SFTP/SCP results in error "Unable to decrypt text of length (4338) which exceeds the max of (4048)" which may be an iApp bug/limitation of fields designated as type "password".
 
 #REFERENCES
 # Git Repository for f5-automated-backup-iapp ( https://github.com/tabernarious/f5-automated-backup-iapp )
@@ -60,7 +65,7 @@
 cli admin-partitions {
     update-partition Common
 }
-sys application template /Common/f5.automated_backup.v3.1.3 {
+sys application template /Common/f5.automated_backup.v3.1.4 {
     actions {
         definition {
             html-help {
@@ -119,7 +124,7 @@ sys application template /Common/f5.automated_backup.v3.1.3 {
                     }
 
                     # Add $pruning_suffix if needed
-                    if { $::destination_parameters__pruning_mode eq "Only Prune iApp-Generated Archives" } {
+                    if { [info exists ::destination_parameters__pruning_mode] && ($::destination_parameters__pruning_mode eq "Only Prune iApp-Generated Archives") } {
                         set pruning_suffix $::destination_parameters__pruning_suffix
                         append filename_format "_" ${pruning_suffix}
                     }
@@ -293,7 +298,7 @@ sys application template /Common/f5.automated_backup.v3.1.3 {
                             set scriptfile "/var/tmp/f5.automated_backup__TMSHAPPNAME_smb.sh"
                             # Clean, recreate, run and reclean a custom bash script that will perform the SMB upload
                             exec rm -f $scriptfile
-                            exec echo -e "\#\!/bin/sh\nf5masterkey=\$(f5mku -K)\nusername=\$(echo \"ENCRYPTEDUSERNAME\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\npassword=\$(echo \"ENCRYPTEDPASSWORD\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\nmsdomain=\$(echo \"ENCRYPTEDMSDOMAIN\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\nserver=\$(echo \"ENCRYPTEDSERVER\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\nmsshare=\$(echo \"ENCRYPTEDMSSHARE\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\nmssubdir=\$(echo \"ENCRYPTEDMSSUBDIR\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\nmountp=\$(echo \"ENCRYPTEDMOUNTP\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\ncd /var/local/ucs\nif \[ \! -d \${mountp} \]\nthen\n\tmkdir -p \${mountp}\n\tif \[ \$? -ne 0 \]\n\tthen\n\t\trm -f ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT\n\t\texit 1\n\tfi\nfi\nmount -t cifs //\${server}/\${msshare} \${mountp} -o user=\${username}%\${password},domain=\${msdomain} 2>> /var/tmp/scriptd.out\nif \[ \$? -ne 0 \]\n\tthen\n\trm -f ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT\n\texit 1\nfi\nfONSMB=\$(ls -t \${mountp}\${mssubdir}/\*.ucs 2>/dev/null| head -n 1 2>/dev/null)\nif \[ \"X\"\${fONSMB} \!= \"X\" \]\n\tthen\n\tsum1=\$(md5sum ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT | awk '{print \$1}')\n\tsum2=\$(md5sum \${fONSMB} | awk \'{print \$1}\')\n\tif \[ \${sum1} == \${sum2} \]\n\tthen\n\t\techo \"ERROR: File ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT already exists in //\${server}/\${msshare}/\${mssubdir}\" >> /var/tmp/scriptd.out\n\t\tumount \${mountp}\n\t\trm -f ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT\n\t\texit 1\n\tfi\nfi\ncp ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT \${mountp}\${mssubdir}\nrm -f ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT\n\nif \[ \"PRUNINGMODE\" \!= \"Disabled\" \]; then\n\n\tfiles_tokeep=\$(ls -t \${mountp}\${mssubdir}/*PRUNINGSUFFIX.BACKUPFILENAMEEXTENSION_NODOT 2>/dev/null | head -n CONSERVE\)\n\tfor current_archive_file in `ls \${mountp}\${mssubdir}/*PRUNINGSUFFIX.BACKUPFILENAMEEXTENSION_NODOT 2>/dev/null` ; do\n\t\tcurrent_archive_file_basename=`basename \$current_archive_file`\n\t\tcheck_file=\$(echo \$files_tokeep | grep -w \$current_archive_file_basename)\n\t\tif \[ \"\$check_file\" == \"\" \] ; then\n\t\t\trm -f \$current_archive_file\n\t\tfi\n\tdone\n\tif \[ \"BACKUPFILENAMEEXTENSION_NODOT\" == \"scf\" \] ; then\n\t\ttar_files_tokeep=\$(ls -t \${mountp}\${mssubdir}/*PRUNINGSUFFIX.BACKUPFILENAMEEXTENSION_NODOT.tar 2>/dev/null | head -n CONSERVE\)\n\t\tfor current_archive_tar_file in `ls \${mountp}\${mssubdir}/*PRUNINGSUFFIX.BACKUPFILENAMEEXTENSION_NODOT.tar 2>/dev/null` ; do\n\t\t\tcurrent_archive_tar_file_basename=`basename \$current_archive_tar_file`\n\t\t\tcheck_file=\$(echo \$tar_files_tokeep | grep -w \$current_archive_tar_file_basename)\n\t\t\tif \[ \"\$check_file\" == \"\" \] ; then\n\t\t\t\trm -f \$current_archive_tar_file\n\t\t\tfi\n\t\tdone\n\tfi\nfi\n\numount \${mountp}\n\nexit 0\n\n" > $scriptfile
+                            exec echo -e "\#\!/bin/sh\nf5masterkey=\$(f5mku -K)\nusername=\$(echo \"ENCRYPTEDUSERNAME\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\npassword=\$(echo \"ENCRYPTEDPASSWORD\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\nmsdomain=\$(echo \"ENCRYPTEDMSDOMAIN\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\nserver=\$(echo \"ENCRYPTEDSERVER\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\nmsshare=\$(echo \"ENCRYPTEDMSSHARE\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\nmssubdir=\$(echo \"ENCRYPTEDMSSUBDIR\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\nmountp=\$(echo \"ENCRYPTEDMOUNTP\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\ncd /var/local/ucs\nif \[ \! -d \${mountp} \]\nthen\n\tmkdir -p \${mountp}\n\tif \[ \$? -ne 0 \]\n\tthen\n\t\trm -f ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT\n\t\texit 1\n\tfi\nfi\nmount -t cifs //\${server}/\${msshare}\${mssubdir} \${mountp} -o user=\${username}%\${password},domain=\${msdomain} 2>> /var/tmp/scriptd.out\nif \[ \$? -ne 0 \]\n\tthen\n\trm -f ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT\n\texit 1\nfi\nfONSMB=\$(ls -t \${mountp}/\*.ucs 2>/dev/null| head -n 1 2>/dev/null)\nif \[ \"X\"\${fONSMB} \!= \"X\" \]\n\tthen\n\tsum1=\$(md5sum ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT | awk '{print \$1}')\n\tsum2=\$(md5sum \${fONSMB} | awk \'{print \$1}\')\n\tif \[ \${sum1} == \${sum2} \]\n\tthen\n\t\techo \"ERROR: File ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT already exists in //\${server}/\${msshare}/\${mssubdir}\" >> /var/tmp/scriptd.out\n\t\tumount \${mountp}\n\t\trm -f ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT\n\t\texit 1\n\tfi\nfi\ncp ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT \${mountp}\nrm -f ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT\n\nif \[ \"PRUNINGMODE\" \!= \"Disabled\" \]; then\n\n\tfiles_tokeep=\$(ls -t \${mountp}/*PRUNINGSUFFIX.BACKUPFILENAMEEXTENSION_NODOT 2>/dev/null | head -n CONSERVE\)\n\tfor current_archive_file in `ls \${mountp}/*PRUNINGSUFFIX.BACKUPFILENAMEEXTENSION_NODOT 2>/dev/null` ; do\n\t\tcurrent_archive_file_basename=`basename \$current_archive_file`\n\t\tcheck_file=\$(echo \$files_tokeep | grep -w \$current_archive_file_basename)\n\t\tif \[ \"\$check_file\" == \"\" \] ; then\n\t\t\trm -f \$current_archive_file\n\t\tfi\n\tdone\n\tif \[ \"BACKUPFILENAMEEXTENSION_NODOT\" == \"scf\" \] ; then\n\t\ttar_files_tokeep=\$(ls -t \${mountp}/*PRUNINGSUFFIX.BACKUPFILENAMEEXTENSION_NODOT.tar 2>/dev/null | head -n CONSERVE\)\n\t\tfor current_archive_tar_file in `ls \${mountp}/*PRUNINGSUFFIX.BACKUPFILENAMEEXTENSION_NODOT.tar 2>/dev/null` ; do\n\t\t\tcurrent_archive_tar_file_basename=`basename \$current_archive_tar_file`\n\t\t\tcheck_file=\$(echo \$tar_files_tokeep | grep -w \$current_archive_tar_file_basename)\n\t\t\tif \[ \"\$check_file\" == \"\" \] ; then\n\t\t\t\trm -f \$current_archive_tar_file\n\t\t\tfi\n\t\tdone\n\tfi\nfi\n\numount \${mountp}\n\nexit 0\n\n" > $scriptfile
                             exec chmod +x $scriptfile
                             if { "PRUNINGMODE" ne "Disabled" } {
                                 exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY and PRUNING (SMB/CIFS) STARTING" >> /var/tmp/scriptd.out
@@ -646,7 +651,7 @@ sys application template /Common/f5.automated_backup.v3.1.3 {
                                 string pruning_suffix required display "medium"
                                 message pruning_suffix_help "Archive names will be generated according to the Filename Format but will also have this Suffix (e.g. 20180510_221532_hostname.example.com_SUFFIX.ucs)."
                             }
-                            editchoice pruning_keep_amount display "small" { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" }
+                            editchoice pruning_keep_amount default "3" display "small" { "1", "2", "3", "4", "5", "6", "7", "8", "9", "10" }
 						}
 					}
 				}
@@ -748,7 +753,7 @@ sys application template /Common/f5.automated_backup.v3.1.3 {
     ignore-verification false
     requires-bigip-version-max none
     requires-bigip-version-min 11.5.4
-    requires-modules { ltm }
+    requires-modules { }
     signing-key none
     tmpl-checksum none
     tmpl-signature none
