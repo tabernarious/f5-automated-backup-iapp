@@ -44,12 +44,20 @@
 #                   - Removed LTM from "Required Modules" list; now no modules are required.
 #                   - SMB/CIFS now directly mounts the target directory instead of the mount point. This allows administrators to deny access to intermediate directories.
 #                   - Set the pruning_keep_amount default to 3 (previously no default existed).
+# v3.1.5 - 20181112 - Updated KNOWN ISSUES section (below)
+#                   - Fixed SCF passphase issue (v11 "tmsh save sys config file NAME" works and applies no passphase ("no-passphase" flag does not exist); v12+ requires use of "no-passphrase" or "passphrase PHRASE"). (github Issue #18)
+#                   - Reordered filename_format list; default remains ${host}_%Y%m%d_%H%M%S
+#                   - Tested on 11.6.3.3, 12.1.3.7, and 13.1.1.2
 
 # KNOWN ISSUES and REQUESTS
-# - Passwords with special characters may cause tcl or bash errors; a backslash must be entered by the user in front of some special character for proper escaping.
-# - F5 TMOS 11.4.1 - 11.5.3 untested and may work.
+# - F5 TMOS 11.4.1 - 11.5.3 have not been (they may work).
+# - Passwords with special characters may cause tcl or bash errors; a backslash must be entered by the user in front of some special character for proper escaping. (github Issue #3 and #16)
+# - Using a 4096 bit private key for SFTP/SCP results in error "Unable to decrypt text of length (4338) which exceeds the max of (4048)" which may be an iApp bug/limitation of fields designated as type "password". (github Issue #12)
+# -- Could add a second field to accept part of the key, then combine the values.
+# -- Could use something like this to pull the key from the F5 filestore (though this would result in the key being accessible via the GUI). This might even work with encrypted keys: grep "sys file ssl-key /Common/KEY-NAME.key" -A1 /config/bigip.conf |tail -1 |sed 's/    cache-path //'
+# - Reported issues with FTP (sending archive before finished or corrupting?) (github Issue #15)
+# - Reported issues with SMB from v12.x to Windows Server 2012 (github Issue #17)
 # - Add automatic pruning for FTP and SFTP/SCP.
-# - Using a 4096 bit private key for SFTP/SCP results in error "Unable to decrypt text of length (4338) which exceeds the max of (4048)" which may be an iApp bug/limitation of fields designated as type "password".
 
 #REFERENCES
 # Git Repository for f5-automated-backup-iapp ( https://github.com/tabernarious/f5-automated-backup-iapp )
@@ -65,7 +73,7 @@
 cli admin-partitions {
     update-partition Common
 }
-sys application template /Common/f5.automated_backup.v3.1.4 {
+sys application template /Common/f5.automated_backup.v3.1.5 {
     actions {
         definition {
             html-help {
@@ -107,7 +115,11 @@ sys application template /Common/f5.automated_backup.v3.1.4 {
                         set create_backup_command_append_pass "passphrase $backup_passphrase"
                     }
                     else {
-                        set create_backup_command_append_pass "no-passphrase"
+                        # Add the "no-passphrase" option which was added in v12 and is required if not using "passphrase"
+                        set tmos_version [lindex [split [tmsh::version] "."] 0]
+                        if { $tmos_version > 11 } {
+                            set create_backup_command_append_pass "no-passphrase"
+                        }
 					}
 
 				}
@@ -500,19 +512,24 @@ sys application template /Common/f5.automated_backup.v3.1.4 {
                 section backup_type {
 					choice backup_type_select display "xlarge" { "UCS (User Configuration Set)", "SCF (Single Configuration File)" }
 					optional ( backup_type_select == "SCF (Single Configuration File)" ) {
-                        message backup_help_scf "WARNING: Beware of choosing SCF file as not all configuration is included therein. Please check out SOL13408 (http://support.f5.com/kb/en-us/solutions/public/13000/400/sol13408.html) for more information."
+                        message backup_help_scf "WARNING: SCF files are intended to help in the configuration of additional BIG-IP systems. However, SCFs are not intended to be used to backup and restore a full BIG-IP system configuration. For more information see SOL13408 (http://support.f5.com/kb/en-us/solutions/public/13000/400/sol13408.html)."
+                        message backup_help_scf2 "An SCF archive consists of two files: 1) a flat text file with the configuration from bigip.conf, bigip_base.conf, etc., and 2) a tar file that contains most everything from /config/filestore including SSL private keys and certificates, iFiles, RSA SecurID files, APM customization files, etc."
+                    }
+                    choice backup_passphrase_select display "small" { "Yes", "No" }
+                    optional ( backup_passphrase_select == "Yes" ) {
+                        message backup_help_passphrase "WARNING: Losing the passphase will render the archives unusable. The encrypted archive will be a PGP encoded file, *not* simply a tar.gz with a password on it."
+                        password backup_passphrase required display "large"
                     }
 					optional ( backup_type_select == "UCS (User Configuration Set)" ) {
-						choice backup_passphrase_select display "small" { "Yes", "No" }
-						optional ( backup_passphrase_select == "Yes" ) {
-                            message backup_help_passphrase "WARNING: Losing the passphase will render the archives unusable. The encrypted UCS archive will be a PGP encoded file, *not* simply a tar.gz with a password on it."
-							password backup_passphrase required display "large"
-						}
 						choice backup_includeprivatekeys display "small" { "Yes", "No" }
                         optional ( backup_includeprivatekeys == "No" ) {
-                            message backup_help_privatekeys "WARNING: A UCS archive that does not contain the private keys CANNOT be used for restoring the device. It should be used for transfers to external services to whom you do not wish to disclose the private keys."
+                            message backup_help_privatekeys_ucs "WARNING: A UCS archive that does not contain the private keys CANNOT be used for restoring the device. It should be used for transfers to external services to whom you do not wish to disclose the private keys."
                         }
 					}
+					optional ( backup_type_select == "SCF (Single Configuration File)" ) {
+                        message backup_help_privatekeys_scf "PRIVATE KEY WARNING: The tar files created alongside each SCF flat-text archive will contain sensitive files such as SSL private keys."
+                        message backup_help_restore_scf "SCF RESTORE WARNING: An SCF flat-text archive without the accompanying tar file CANNOT be used for restoring the device."
+                    }
 				}
 				section backup_schedule {
 					choice frequency_select display "large" { "Disable", "Every X Minutes", "Every X Hours", "Every X Days", "Every X Weeks", "Every X Months", "Custom" }
@@ -612,28 +629,28 @@ sys application template /Common/f5.automated_backup.v3.1.4 {
 						editchoice filename_format display "xxlarge" tcl {
 							set host [tmsh::get_field_value [lindex [tmsh::get_config sys global-settings] 0] hostname]
 							set formats ""
-							append formats {%Y%m%d%H%M%S_${host} => }
-							append formats [clock format [clock seconds] -format "%Y%m%d%H%M%S_${host}"]
-							append formats "\n"
-							append formats {%Y%m%d_%H%M%S_${host} => }
-							append formats [clock format [clock seconds] -format "%Y%m%d_%H%M%S_${host}"]
-							append formats "\n"
-							append formats {%Y%m%d_${host} => }
-							append formats [clock format [clock seconds] -format "%Y%m%d_${host}"]
+							append formats {${host}_%Y%m%d_%H%M%S => }
+							append formats [clock format [clock seconds] -format "${host}_%Y%m%d_%H%M%S"]
 							append formats "\n"
 							append formats {${host}_%Y%m%d%H%M%S => }
 							append formats [clock format [clock seconds] -format "${host}_%Y%m%d%H%M%S"]
 							append formats "\n"
-							append formats {${host}_%Y%m%d_%H%M%S => }
-							append formats [clock format [clock seconds] -format "${host}_%Y%m%d_%H%M%S"]
-							append formats "\n"
 							append formats {${host}_%Y%m%d => }
 							append formats [clock format [clock seconds] -format "${host}_%Y%m%d"]
+							append formats "\n"
+							append formats {%Y%m%d_%H%M%S_${host} => }
+							append formats [clock format [clock seconds] -format "%Y%m%d_%H%M%S_${host}"]
+							append formats "\n"
+							append formats {%Y%m%d%H%M%S_${host} => }
+							append formats [clock format [clock seconds] -format "%Y%m%d%H%M%S_${host}"]
+							append formats "\n"
+							append formats {%Y%m%d_${host} => }
+							append formats [clock format [clock seconds] -format "%Y%m%d_${host}"]
 							append formats "\n"
 							return $formats
 						}
 						message filename_format_help "You can select one, or create your own with all the [clock format] wildcards available in the tcl language, plus ${host} for the hostname. (See http://www.tcl.tk/man/tcl8.6/TclCmd/clock.htm for details.)"
-                        message filename_format_help2 "NOTE: When configuring this iApp for HA pairs be sure to include ${host} variable in this Filename Format, otherwise archives may be indistinguishable."
+                        message filename_format_help2 "NOTE: When configuring this iApp for HA pairs be sure to include ${host} variable in this Filename Format, otherwise archives may be indistinguishable. When you sync this iApp configuration to the peer you may see the example in this list show the hostname of the device where this iApp was first configured--this is just cosmetic as long as ${host} is used."
                         message filename_format_help3 "NOTE: If the filename format does not include a unique identifier (e.g. datestamp), new Archives may be generated with the same filename and will overwrite old Archives."
 						optional ( protocol_enable == "On this F5" || protocol_enable == "Remotely via SMB/CIFS" ) {
 							choice pruning_mode display "xlarge" { "Disabled", "Only Prune iApp-Generated Archives", "Prune All Archives" }
@@ -666,8 +683,11 @@ sys application template /Common/f5.automated_backup.v3.1.4 {
 					backup_type.backup_passphrase "What is the passphrase you want to use?"
 					backup_type.backup_includeprivatekeys "Include the private keys in the archives?"
 					backup_type.backup_help_scf ""
+					backup_type.backup_help_scf2 ""
 					backup_type.backup_help_passphrase ""
-					backup_type.backup_help_privatekeys ""
+					backup_type.backup_help_privatekeys_ucs ""
+					backup_type.backup_help_privatekeys_scf ""
+					backup_type.backup_help_restore_scf ""
 					backup_schedule "Backup Schedule"
 					backup_schedule.frequency_select "Frequency:"
 					backup_schedule.everyxminutes_value "Where X equals:"
