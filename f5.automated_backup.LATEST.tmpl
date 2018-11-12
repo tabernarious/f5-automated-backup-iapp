@@ -30,13 +30,16 @@
 #                   - Adjusted some help messages.
 # v3.1.1 - 20180331 - Removed TCL double substitution warnings
 #                   - Fixed duplication of UCS file extension when uploading to FTP
+# v3.1.2 - 20180510 - Allowed Destination to be an IP or hostname, and added clarifying notes.
+#                   - Added Source IP notes to help users understand and manipulate the source IP used by BIG-IP.
+#                   - Added path notes for SFTP/SCP and FTP.
+#                   - Fixed ssh-keygen example syntax and added note about optional ssh-copy-id command.
+#                   - Clarified SMB/CIFS special character escaping for password--not all non-alphanumeric characters need to be escaped.
 
 # KNOWN ISSUES
-# - Some tcl warnings when loading configuration.
-# - Passwords with special characters may cause tcl or bash errors; a backslash must be entered by the user in front of each special character for proper escaping.
+# - Passwords with special characters may cause tcl or bash errors; a backslash must be entered by the user in front of some special character for proper escaping.
 # - F5 TMOS 11.4.1 - 11.5.3 untested and may work.
-# - BACKUPFILESCRIPTEXTENSION is not understood and may not be needed.
-# - Automatic pruning is not
+# - Automatic pruning is not used for network backups.
 
 #REFERENCES
 # Git Repository for f5-automated-backup-iapp ( https://github.com/tabernarious/f5-automated-backup-iapp )
@@ -52,7 +55,7 @@
 cli admin-partitions {
     update-partition Common
 }
-sys application template /Common/f5.automated_backup.v3.1.1 {
+sys application template /Common/f5.automated_backup.v3.1.2 {
     actions {
         definition {
             html-help {
@@ -505,8 +508,10 @@ sys application template /Common/f5.automated_backup.v3.1.1 {
 						choice protocol_enable display "xlarge" { "On this F5", "Remotely via SCP/SFTP", "Remotely via SMB/CIFS", "Remotely via FTP" }
 						optional ( protocol_enable == "Remotely via SCP/SFTP") {
 							message scp_sftp_help "A connection to an SSH server can be establish using both SCP and SFTP. SCP is more efficient for copying files to a remote network destination while, for interactive sessions, the SFTP protocol offers more features. This iApp uses SCP."
-                            string scp_remote_server required display "medium" validator "IpAddress"
-                            message scp_remote_server_help "IMPORTANT: Check '/root/.ssh/known_hosts' on each BIG-IP (including HA peers) to ensure the Destination IP above is listed. On each BIG-IP that does not list the Destination IP, connect directly to the Destination IP using the scp or ssh command. You will be asked to verify the 'RSA key fingerprint'. Entering 'yes' will store the fingerprint in '/root/.ssh/known_hosts' and allow subsequent connections without further verification. If IP from the CLI on all BIG-IPs (including HA peers) and verify/accept the fingerprint which should add an entry to the known_hosts file."
+                            string scp_remote_server required display "medium"
+                            message scp_remote_server_help "The Destination can be an IP address or an FQDN. DNS must be configured and functional on this BIG-IP (and HA peers) for an FQDN to work."
+                            message scp_remote_server_help2 "IMPORTANT: Check '/root/.ssh/known_hosts' on each BIG-IP (including HA peers) to ensure the Destination above is listed. If using an FQDN, the name (not just the IP) must be in known_hosts. On each BIG-IP that does not list the Destination (including HA peers), connect directly to the Destination using the scp or ssh command. You will be asked to verify the 'RSA key fingerprint'. Entering 'yes' will store the fingerprint in '/root/.ssh/known_hosts' and allow subsequent connections without further verification. If you run into cipher errors, you may need to add '-c aes128-ctr' or an appropriate cipher (see the help under Cipher below)."
+                            message scp_source_help "Connections to the Destination will be sourced from a non-floating Self IP or from the Management IP based on L2/L3 networking. If the Destination is in the same subnet as a Self IP or the Management IP, you cannot easily affect the source IP. If the Destination must be routed, you can manipulate the source IP by creating a TMM route or Management Route to force the L3 next-hop/gateway (the BIG-IP will use a source IP in the same subnet as the L3 next-hop/gateway)."
                             choice scp_stricthostkeychecking default "Yes" display "large" { "Yes", "No (INSECURE)" }
                             optional ( scp_stricthostkeychecking == "No (INSECURE)" ) {
                                 message scp_stricthostkeychecking_warning1 "WARNING: Selecting 'No (INSECURE)' will ignore certificate verification for connections this iApp makes to the server configured above. Backups could be copied to an unintended server, including one owned by a bad actor."
@@ -519,20 +524,24 @@ sys application template /Common/f5.automated_backup.v3.1.1 {
                             }
 							string scp_remote_username required display "medium"
 							password scp_sshprivatekey required display "large"
-                            message scp_encrypted_field_storage_help "Private key must be non-encrypted and in 'OpenSSH' base64 format. As an example run 'ssh-keygen -t -b 2048 -o -a 100' from the CLI, step through the questions, and view the resulting private key (by default ssh-keygen will save the key to ~/.ssh/id_rsa)."
-							message scp_encrypted_field_storage_help2 "Passwords and private keys are stored in an encrypted format. The salt for the encryption algorithm is the F5 cluster's Master Key. The master key is not shared when exporting a qkview or UCS, thus rendering your passwords and private keys safe if a backup file were to be stored off-box."
+                            message scp_encrypted_field_storage_help "Private key must be non-encrypted and in 'OpenSSH' base64 format. As an example run 'ssh-keygen -t rsa -b 4096 -C f5_backups' from the BIG-IP CLI, step through the questions, and view the resulting private key (by default ssh-keygen will save the key to ~/.ssh/id_rsa)."
+                            message scp_encrypted_field_storage_help2 "If the Destination Server supports it, you may optionally run 'ssh-copy-id -i /root/.ssh/id_rsa.pub -o Ciphers=aes128-ctr username@destination' (with relevant values) to add the public key to the Destination Server's authorized_keys file (this only needs to be done once per unique key--not from every BIG-IP)."
+							message scp_encrypted_field_storage_help3 "Passwords and private keys are stored in an encrypted format. The salt for the encryption algorithm is the F5 cluster's Master Key. The master key is not shared when exporting a qkview or UCS, thus rendering your passwords and private keys safe if a backup file were to be stored off-box."
                             editchoice scp_cipher display "xlarge" { "aes128-ctr", "aes192-ctr", "aes256-ctr", "aes128-gcm@openssh.com", "chacha20-poly1305@openssh.com" }
-							message scp_cipher_help "Depending on the version of F5 TMOS and the ssh configuration of the destination server, there may be no matching ciphers resulting in a 'no matching cipher found' error (which can viewed in /var/tmp/scriptd.out after deploying this iApp or it can be tested/demonstrated by attempting an scp or ssh connection from this device to the destination server). Find the word 'server' in the error and note the ciphers listed; select one of these ciphers from the list above or paste in one not listed."
+							message scp_cipher_help "This can often be left blank but, depending on the version of F5 TMOS and the ssh configuration of the destination server, there may be no matching ciphers resulting in a 'no matching cipher found' error (which can viewed in /var/tmp/scriptd.out after deploying this iApp or it can be tested/demonstrated by attempting an scp or ssh connection from this device to the destination server). Find the word 'server' in the error and note the ciphers listed; select one of these ciphers from the list above or paste in one not listed. This can be tested by attempting 'ssh -c aes128-ctr username@destination' (with appropriate cipher) from this device's CLI."
 							string scp_remote_directory display "medium"
+                            message scp_remote_directory_help "Full path without a trailing slash (e.g. '/home/user1/f5_backups/prod')."
 						}
 						optional ( protocol_enable == "Remotely via SMB/CIFS") {
-							string smb_remote_server required display "medium" validator "IpAddress"
-                            message smb_remote_server_help "Ensure this Destination IP is reachable on port 139."
+							string smb_remote_server required display "medium"
+                            message smb_remote_server_help "The Destination can be an IP address or an FQDN. DNS must be configured and functional on this BIG-IP (and HA peers) for an FQDN to work."
+                            message smb_remote_server_help2 "Ensure this Destination IP is reachable on port 139."
+                            message smb_source_help "Connections to the Destination will be sourced from a non-floating Self IP or from the Management IP based on L2/L3 networking. If the Destination is in the same subnet as a Self IP or the Management IP, you cannot easily affect the source IP. If the Destination must be routed, you can manipulate the source IP by creating a TMM route or Management Route to force the L3 next-hop/gateway (the BIG-IP will use a source IP in the same subnet as the L3 next-hop/gateway)."
 							string smb_remote_domain required display "medium"
 							message smb_remote_domain_help "Start by entering the NetBIOS/Pre-Windows 2000 domain name; the fully qualified DNS domain name may work or be required in some environments."
 							string smb_remote_username required display "medium"
 							password smb_remote_password display "medium"
-                            message smb_remote_password_help "Special characters within passwords must be escaped (add a backslash before each special character as you input the password)."
+                            message smb_remote_password_help "Some special (non-alphanumeric) characters within passwords may need to be escaped (add a backslash before each special character as you input the password). RECOMMENDATION: Enter the password as-is (no escaping) and test. If the backup fails due to invalid credentials or some script error (possibly caused by an unescaped character) try escaping one non-alphanumeric at a time and re-testing."
 							message smb_remote_password_help2 "Passwords and private keys are stored in an encrypted format. The salt for the encryption algorithm is the F5 cluster's Master Key. The master key is not shared when exporting a qkview or UCS, thus rendering your passwords and private keys safe if a backup file were to be stored off-box."
 							string smb_remote_path required display "medium"
 							message smb_remote_path_help "SMB share on a remote server. Do not include leading and trailing slashes. If the full share path is //SERVER/SHARE, enter SHARE in this field. If the full share path is //SERVER/PATH/SHARE, enter PATH/SHARE in this field."
@@ -542,11 +551,14 @@ sys application template /Common/f5.automated_backup.v3.1.1 {
 							message smb_local_mountdir_help "Read-Write path on local F5 where SMB share will be mounted. Include one leading slash and no trailing slashes, for example /var/tmp/cifs"
 						}
 						optional ( protocol_enable == "Remotely via FTP") {
-							string ftp_remote_server required display "medium" validator "IpAddress"
+							string ftp_remote_server required display "medium"
+                            message ftp_remote_server_help "The Destination can be an IP address or an FQDN. DNS must be configured and functional on this BIG-IP (and HA peers) for an FQDN to work."
+                            message ftp_source_help "Connections to the Destination will be sourced from a non-floating Self IP or from the Management IP based on L2/L3 networking. If the Destination is in the same subnet as a Self IP or the Management IP, you cannot easily affect the source IP. If the Destination must be routed, you can manipulate the source IP by creating a TMM route or Management Route to force the L3 next-hop/gateway (the BIG-IP will use a source IP in the same subnet as the L3 next-hop/gateway)."
 							string ftp_remote_username required display "medium"
 							password ftp_remote_password display "medium"
 							message ftp_encrypted_field_storage_help "Passwords and private keys are stored in an encrypted format. The salt for the encryption algorithm is the F5 cluster's Master Key. The master key is not shared when exporting a qkview or UCS, thus rendering your passwords and private keys safe if a backup file were to be stored off-box."
 							string ftp_remote_directory display "medium"
+                            message ftp_remote_directory_help "Full path without a trailing slash (e.g. '/home/user1/f5_backups/prod'), or relative directory name inside the user's home directory without leading and trailing slashes (e.g. 'f5_backups' or 'f5_backups/prod')."
 						}
 						editchoice filename_format display "xxlarge" tcl {
 							set host [tmsh::get_field_value [lindex [tmsh::get_config sys global-settings] 0] hostname]
@@ -612,8 +624,10 @@ sys application template /Common/f5.automated_backup.v3.1.1 {
 					destination_parameters "Destination Parameters"
 					destination_parameters.protocol_enable "Where do the backup files need to be saved?"
                     destination_parameters.scp_sftp_help "SCP or SFTP?"
-					destination_parameters.scp_remote_server "Destination IP:"
+					destination_parameters.scp_remote_server "Destination:"
 					destination_parameters.scp_remote_server_help ""
+					destination_parameters.scp_remote_server_help2 ""
+					destination_parameters.scp_source_help "Source IP"
                     destination_parameters.scp_stricthostkeychecking "StrictHostKeyChecking"
                     destination_parameters.scp_stricthostkeychecking_help1 ""
                     destination_parameters.scp_stricthostkeychecking_help2 ""
@@ -624,11 +638,15 @@ sys application template /Common/f5.automated_backup.v3.1.1 {
 					destination_parameters.scp_sshprivatekey "Copy/Paste the SSH private key to be used for passwordless authentication:"
 					destination_parameters.scp_encrypted_field_storage_help ""
 					destination_parameters.scp_encrypted_field_storage_help2 ""
+					destination_parameters.scp_encrypted_field_storage_help3 ""
 					destination_parameters.scp_remote_directory "Remote directory for archive upload:"
+					destination_parameters.scp_remote_directory_help ""
                     destination_parameters.scp_cipher "Cipher"
                     destination_parameters.scp_cipher_help ""
-					destination_parameters.smb_remote_server "Destination IP:"
+					destination_parameters.smb_remote_server "Destination:"
 					destination_parameters.smb_remote_server_help ""
+					destination_parameters.smb_remote_server_help2 ""
+					destination_parameters.smb_source_help "Source IP"
 					destination_parameters.smb_remote_username "Username:"
 					destination_parameters.smb_remote_domain "Domain Name:"
 					destination_parameters.smb_remote_domain_help ""
@@ -644,8 +662,11 @@ sys application template /Common/f5.automated_backup.v3.1.1 {
  					destination_parameters.ftp_remote_username "Username:"
 					destination_parameters.ftp_remote_password "Password:"
 					destination_parameters.ftp_encrypted_field_storage_help ""
-					destination_parameters.ftp_remote_server "Destination IP:"
+					destination_parameters.ftp_remote_server "Destination:"
+					destination_parameters.ftp_remote_server_help ""
+					destination_parameters.ftp_source_help "Source IP"
 					destination_parameters.ftp_remote_directory "Set the remote directory the archive should be copied to:"
+					destination_parameters.ftp_remote_directory_help ""
 					destination_parameters.filename_format "Select the filename format:"
 					destination_parameters.filename_format_help ""
 					destination_parameters.pruning_enable "Activate automatic pruning?"
