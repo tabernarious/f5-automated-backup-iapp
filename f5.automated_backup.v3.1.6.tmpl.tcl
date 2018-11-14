@@ -618,7 +618,7 @@ sys application template /Common/f5.automated_backup.v3.1.6 {
 							message scp_encrypted_field_storage_help3 "Passwords and private keys are stored in an encrypted format. The salt for the encryption algorithm is the F5 cluster's Master Key. The master key is not shared when exporting a qkview or UCS, thus rendering your passwords and private keys safe if a backup file were to be stored off-box."
                             editchoice scp_cipher display "xlarge" { "aes128-ctr", "aes192-ctr", "aes256-ctr", "aes128-gcm@openssh.com", "chacha20-poly1305@openssh.com" }
 							message scp_cipher_help "This can often be left blank but, depending on the version of F5 TMOS and the ssh configuration of the destination server, there may be no matching ciphers resulting in a 'no matching cipher found' error (which can viewed in /var/tmp/scriptd.out after deploying this iApp or it can be tested/demonstrated by attempting an scp or ssh connection from this device to the destination server). Find the word 'server' in the error and note the ciphers listed; select one of these ciphers from the list above or paste in one not listed. This can be tested by attempting 'ssh -c aes128-ctr username@destination' (with appropriate cipher) from this device's CLI."
-							string scp_remote_directory display "medium"
+							string scp_remote_directory display "large"
                             message scp_remote_directory_help "Full path without a trailing slash (e.g. '/home/user1/f5_backups/prod')."
 						}
 						optional ( protocol_enable == "Remotely via SMB/CIFS") {
@@ -632,11 +632,11 @@ sys application template /Common/f5.automated_backup.v3.1.6 {
 							password smb_remote_password display "medium"
                             message smb_remote_password_help "Some special (non-alphanumeric) characters within passwords may need to be escaped (add a backslash before each special character as you input the password). RECOMMENDATION: Enter the password as-is (no escaping) and test. If the backup fails due to invalid credentials or some script error (possibly caused by an unescaped character) try escaping one non-alphanumeric at a time and re-testing."
 							message smb_remote_password_help2 "Passwords and private keys are stored in an encrypted format. The salt for the encryption algorithm is the F5 cluster's Master Key. The master key is not shared when exporting a qkview or UCS, thus rendering your passwords and private keys safe if a backup file were to be stored off-box."
-							string smb_remote_path required display "medium"
+							string smb_remote_path required display "large"
 							message smb_remote_path_help "SMB share on a remote server. Do not include leading and trailing slashes. If the full share path is //SERVER/SHARE, enter SHARE in this field. If the full share path is //SERVER/PATH/SHARE, enter PATH/SHARE in this field."
-							string smb_remote_directory display "medium"
+							string smb_remote_directory display "large"
 							message smb_remote_directory_help "Relative path inside the SMB share to copy the file. Leave this field empty to store in root of SMB share. Include one leading slash and no trailing slashes. If the target directory is //SERVER/SHARE/PATH/DIRECTORY, enter /PATH/DIRECTORY in this field."
-							string smb_local_mountdir required default "/var/tmp/cifs" display "medium"
+							string smb_local_mountdir required default "/var/tmp/cifs" display "large"
 							message smb_local_mountdir_help "Read-Write path on local F5 where SMB share will be mounted. Include one leading slash and no trailing slashes, for example /var/tmp/cifs"
 						}
 						optional ( protocol_enable == "Remotely via FTP") {
@@ -646,7 +646,7 @@ sys application template /Common/f5.automated_backup.v3.1.6 {
 							string ftp_remote_username required display "medium"
 							password ftp_remote_password display "medium"
 							message ftp_encrypted_field_storage_help "Passwords and private keys are stored in an encrypted format. The salt for the encryption algorithm is the F5 cluster's Master Key. The master key is not shared when exporting a qkview or UCS, thus rendering your passwords and private keys safe if a backup file were to be stored off-box."
-							string ftp_remote_directory display "medium"
+							string ftp_remote_directory display "large"
                             message ftp_remote_directory_help "Full path without a trailing slash (e.g. '/home/user1/f5_backups/prod'), or relative directory name inside the user's home directory without leading and trailing slashes (e.g. 'f5_backups' or 'f5_backups/prod')."
 						}
 						editchoice filename_format display "xxlarge" tcl {
@@ -702,7 +702,7 @@ sys application template /Common/f5.automated_backup.v3.1.6 {
                     deployment_info.deployment_info_logs "Logging:"
                     backup_type "Backup Type"
 					backup_type.backup_type_select "Select the type of backup:"
-					backup_type.backup_passphrase_select "Use a passphrase to encrypt the UCS archive:"
+					backup_type.backup_passphrase_select "Use a passphrase to encrypt the archive:"
 					backup_type.backup_passphrase "What is the passphrase you want to use?"
 					backup_type.backup_includeprivatekeys "Include the private keys in the archives?"
 					backup_type.backup_help_scf ""
