@@ -48,10 +48,14 @@
 #                   - Fixed SCF passphase issue (v11 "tmsh save sys config file NAME" works and applies no passphase ("no-passphase" flag does not exist); v12+ requires use of "no-passphrase" or "passphrase PHRASE"). (github Issue #18)
 #                   - Reordered filename_format list; default remains ${host}_%Y%m%d_%H%M%S
 #                   - Tested on 11.6.3.3, 12.1.3.7, and 13.1.1.2
+# v3.1.6 - 20181114 - Fixed lots of issues with SCF files for SFTP/SCP, FTP, and SMB/CIFS (mainly, tar files were not being copied and were not being cleaned up locally). (github Issue #18)
+#                   - Added logging clarification that when using SCF archives a .tar file is also generated and saved/uploaded.
+#                   - Added debug logging for the SMB/CIFS script.
+#                   - Now including on github an expanded form of the upload scripts for better understanding (see "f5.automated_backup.v3.1.6.scripts.sh" etc.).
 
 # KNOWN ISSUES and REQUESTS
 # - F5 TMOS 11.4.1 - 11.5.3 have not been (they may work).
-# - Passwords with special characters may cause tcl or bash errors; a backslash must be entered by the user in front of some special character for proper escaping. (github Issue #3 and #16)
+# - Passwords with special characters may cause tcl or bash errors; a backslash entered by the user in front of some special characters may fix this. (github Issue #3 and #16)
 # - Using a 4096 bit private key for SFTP/SCP results in error "Unable to decrypt text of length (4338) which exceeds the max of (4048)" which may be an iApp bug/limitation of fields designated as type "password". (github Issue #12)
 # -- Could add a second field to accept part of the key, then combine the values.
 # -- Could use something like this to pull the key from the F5 filestore (though this would result in the key being accessible via the GUI). This might even work with encrypted keys: grep "sys file ssl-key /Common/KEY-NAME.key" -A1 /config/bigip.conf |tail -1 |sed 's/    cache-path //'
@@ -73,7 +77,7 @@
 cli admin-partitions {
     update-partition Common
 }
-sys application template /Common/f5.automated_backup.v3.1.5 {
+sys application template /Common/f5.automated_backup.v3.1.6 {
     actions {
         definition {
             html-help {
@@ -175,34 +179,39 @@ sys application template /Common/f5.automated_backup.v3.1.5 {
                             # Form the filename for the backup
                             set fname_noext "${cdate}"
                             set fname "${cdate}BACKUPFILENAMEEXTENSION_WITHDOT"
+                            set fname_log $fname
+                            if { "BACKUPFILENAMEEXTENSION_NODOT" eq "scf" } {
+                                append fname_log " (and .tar)"
+                            }
                             # Run the 'create backup' command
-                            exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname GENERATING" >> /var/tmp/scriptd.out
-                            exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname GENERATING"
+                            exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log GENERATING" >> /var/tmp/scriptd.out
+                            exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname_log GENERATING"
                             # Delay 1 second to allow proper logging to /var/tmp/scriptd.out
                             exec sleep 1
                             BACKUPCOMMAND $fname BACKUPAPPEND_PASS BACKUPAPPEND_KEYS
-                            exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname SAVED LOCALLY (BACKUPDIRECTORY)" >> /var/tmp/scriptd.out
-                            exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname SAVED LOCALLY (BACKUPDIRECTORY)"
+                            exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log SAVED LOCALLY (BACKUPDIRECTORY)" >> /var/tmp/scriptd.out
+                            exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname_log SAVED LOCALLY (BACKUPDIRECTORY)"
                             # Set the script filename
                             set scriptfile "/var/tmp/f5.automated_backup__TMSHAPPNAME_scp.sh"
                             # Clean, recreate, and run a custom bash script that will perform the SCP upload
                             exec rm -f $scriptfile
                             exec echo "yes"
-                            exec echo -e "scp_function()\n{\n\tf5masterkey=\$(f5mku -K)\n\tusername=\$(echo \"ENCRYPTEDUSERNAME\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\n\tserver=\$(echo \"ENCRYPTEDSERVER\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\n\tdirectory=\$(echo \"ENCRYPTEDDIRECTORY\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\n\techo \"ENCRYPTEDPRIVATEKEY\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey} > /var/tmp/TMSHAPPNAME_scp.key\n\n\tchmod 600 /var/tmp/TMSHAPPNAME_scp.key\n\tscp -i /var/tmp/TMSHAPPNAME_scp.key SCPCIPHER SCPSTRICTHOSTKEYCHECKING BACKUPDIRECTORY/${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT \${username}@\${server}:\${directory} 2>> /var/tmp/scriptd.out\n\tscp_result=\$?\n\trm -f /var/tmp/TMSHAPPNAME_scp.key\n\treturn \$scp_result\n}\n\nscp_function" > $scriptfile
+                            exec echo -e "scp_function()\n{\n\tf5masterkey=\$(f5mku -K)\n\tusername=\$(echo \"ENCRYPTEDUSERNAME\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\n\tserver=\$(echo \"ENCRYPTEDSERVER\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\n\tdirectory=\$(echo \"ENCRYPTEDDIRECTORY\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\n\techo \"ENCRYPTEDPRIVATEKEY\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey} > /var/tmp/TMSHAPPNAME_scp.key\n\n\tchmod 600 /var/tmp/TMSHAPPNAME_scp.key\n\tscp -i /var/tmp/TMSHAPPNAME_scp.key SCPCIPHER SCPSTRICTHOSTKEYCHECKING BACKUPDIRECTORY/${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT* \${username}@\${server}:\${directory} 2>> /var/tmp/scriptd.out\n\tscp_result=\$?\n\trm -f /var/tmp/TMSHAPPNAME_scp.key\n\treturn \$scp_result\n}\n\nscp_function" > $scriptfile
                             exec chmod +x $scriptfile
-                            exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY (SCP) STARTING" >> /var/tmp/scriptd.out
-                            exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY (SCP) STARTING"
+                            exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log REMOTE COPY (SCP) STARTING" >> /var/tmp/scriptd.out
+                            exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname_log REMOTE COPY (SCP) STARTING"
                             if { [catch {exec $scriptfile}] } {
-                                exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY (SCP) FAILED (check for errors above)" >> /var/tmp/scriptd.out
-                                exec logger -p local0.crit "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY (SCP) FAILED (see /var/tmp/scriptd.out for errors)"
+                                exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log REMOTE COPY (SCP) FAILED (check for errors above)" >> /var/tmp/scriptd.out
+                                exec logger -p local0.crit "f5.automated_backup iApp TMSHAPPNAME: $fname_log REMOTE COPY (SCP) FAILED (see /var/tmp/scriptd.out for errors)"
                             } else {
-                                exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY (SCP) SUCCEEDED" >> /var/tmp/scriptd.out
-                                exec logger -p local0.notice "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY (SCP) SUCCEEDED"
+                                exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log REMOTE COPY (SCP) SUCCEEDED" >> /var/tmp/scriptd.out
+                                exec logger -p local0.notice "f5.automated_backup iApp TMSHAPPNAME: $fname_log REMOTE COPY (SCP) SUCCEEDED"
                             }
                             # Clean up local files
                             exec rm -f $scriptfile
                             exec rm -f /var/tmp/TMSHAPPNAME_scp.key
-                            exec rm -f BACKUPDIRECTORY/${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT
+                            # Calling /bin/sh is required due to wildcard which is required to clean up SCF (and .tar)
+                            exec /bin/sh -c "rm -f BACKUPDIRECTORY/${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT*"
                             exec echo "f5.automated_backup iApp TMSHAPPNAME: FINISHED" >> /var/tmp/scriptd.out
                             exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: FINISHED"
                         }
@@ -228,14 +237,18 @@ sys application template /Common/f5.automated_backup.v3.1.5 {
                             # Form the filename for the backup
                             set fname_noext "${cdate}"
                             set fname "${cdate}BACKUPFILENAMEEXTENSION_WITHDOT"
+                            set fname_log $fname
+                            if { "BACKUPFILENAMEEXTENSION_NODOT" eq "scf" } {
+                                append fname_log " (and .tar)"
+                            }
                             # Run the 'create backup' command
-                            exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname GENERATING" >> /var/tmp/scriptd.out
-                            exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname GENERATING"
+                            exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log GENERATING" >> /var/tmp/scriptd.out
+                            exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname_log GENERATING"
                             # Delay 1 second to allow proper logging to /var/tmp/scriptd.out
                             exec sleep 1
                             BACKUPCOMMAND $fname BACKUPAPPEND_PASS BACKUPAPPEND_KEYS
-                            exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname SAVED LOCALLY (BACKUPDIRECTORY)" >> /var/tmp/scriptd.out
-                            exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname SAVED LOCALLY (BACKUPDIRECTORY)"
+                            exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log SAVED LOCALLY (BACKUPDIRECTORY)" >> /var/tmp/scriptd.out
+                            exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname_log SAVED LOCALLY (BACKUPDIRECTORY)"
                             # Set the config file
                             set configfile "/config/f5.automated_backup__TMSHAPPNAME_ftp.conf"
                             # Set the script filename
@@ -243,20 +256,21 @@ sys application template /Common/f5.automated_backup.v3.1.5 {
                             # Clean, recreate, run and reclean a custom bash script that will perform the FTP upload
                             exec rm -f $scriptfile
                             # Updated command v2.2.4 to force binary transfer.
-                            exec echo -e "ftp_function()\n{\n\tf5masterkey=\$(f5mku -K)\n\tusername=\$(echo \"ENCRYPTEDUSERNAME\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\n\tpassword=\$(echo \"ENCRYPTEDPASSWORD\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\n\tserver=\$(echo \"ENCRYPTEDSERVER\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\n\tdirectory=\$(echo \"ENCRYPTEDDIRECTORY\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\n\n\tftp_return=\$(ftp -n \${server} << END_FTP\nquote USER \${username}\nquote PASS \${password}\nbinary\nput BACKUPDIRECTORY/${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT \${directory}/${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT\nquit\nEND_FTP\n)\n\tif \[ \"\$ftp_return\" == \"\" \]\n\tthen\n\t\treturn 0\n\telse\n\t\techo \"\$ftp_return\" >> /var/tmp/scriptd.out\n\t\treturn 1\n\tfi\n}\n\nftp_function" > $scriptfile
+                            exec echo -e "ftp_function()\n{\n\tf5masterkey=\$(f5mku -K)\n\tusername=\$(echo \"ENCRYPTEDUSERNAME\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\n\tpassword=\$(echo \"ENCRYPTEDPASSWORD\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\n\tserver=\$(echo \"ENCRYPTEDSERVER\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\n\tdirectory=\$(echo \"ENCRYPTEDDIRECTORY\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\n\n\tif \[ \"BACKUPFILENAMEEXTENSION_NODOT\" == \"scf\" \]\n\tthen\n\t\tftp_return=\$(ftp -n \${server} << END_FTP\nquote USER \${username}\nquote PASS \${password}\nbinary\nput BACKUPDIRECTORY/${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT \${directory}/${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT\nput BACKUPDIRECTORY/${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT.tar \${directory}/${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT.tar\nquit\nEND_FTP\n)\n\telse\n\t\tftp_return=\$(ftp -n \${server} << END_FTP\nquote USER \${username}\nquote PASS \${password}\nbinary\nput BACKUPDIRECTORY/${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT \${directory}/${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT\nquit\nEND_FTP\n)\n\tfi\n\n\tif \[ \"\$ftp_return\" == \"\" \]\n\tthen\n\t\treturn 0\n\telse\n\t\techo \"\$ftp_return\" >> /var/tmp/scriptd.out\n\t\treturn 1\n\tfi\n}\n\nftp_function\n" > $scriptfile
                             exec chmod +x $scriptfile
-                            exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY (FTP) STARTING" >> /var/tmp/scriptd.out
-                            exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY (FTP) STARTING"
+                            exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log REMOTE COPY (FTP) STARTING" >> /var/tmp/scriptd.out
+                            exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname_log REMOTE COPY (FTP) STARTING"
                             if { [catch {exec $scriptfile}] } {
-                                exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY (FTP) FAILED (check for errors above)" >> /var/tmp/scriptd.out
-                                exec logger -p local0.crit "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY (FTP) FAILED (see /var/tmp/scriptd.out for errors)"
+                                exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log REMOTE COPY (FTP) FAILED (check for errors above)" >> /var/tmp/scriptd.out
+                                exec logger -p local0.crit "f5.automated_backup iApp TMSHAPPNAME: $fname_log REMOTE COPY (FTP) FAILED (see /var/tmp/scriptd.out for errors)"
                             } else {
-                                exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY (FTP) SUCCEEDED" >> /var/tmp/scriptd.out
-                                exec logger -p local0.notice "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY (FTP) SUCCEEDED"
+                                exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log REMOTE COPY (FTP) SUCCEEDED" >> /var/tmp/scriptd.out
+                                exec logger -p local0.notice "f5.automated_backup iApp TMSHAPPNAME: $fname_log REMOTE COPY (FTP) SUCCEEDED"
                             }
                             # Clean up local files
                             exec rm -f $scriptfile
-                            exec rm -f BACKUPDIRECTORY/${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT
+                            # Calling /bin/sh is required due to wildcard which is required to clean up SCF (and .tar)
+                            exec /bin/sh -c "rm -f BACKUPDIRECTORY/${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT*"
                             exec echo "f5.automated_backup iApp TMSHAPPNAME: FINISHED" >> /var/tmp/scriptd.out
                             exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: FINISHED"
                         }
@@ -298,37 +312,42 @@ sys application template /Common/f5.automated_backup.v3.1.5 {
                             # Form the filename for the backup
                             set fname_noext "${cdate}"
                             set fname "${cdate}BACKUPFILENAMEEXTENSION_WITHDOT"
+                            set fname_log $fname
+                            if { "BACKUPFILENAMEEXTENSION_NODOT" eq "scf" } {
+                                append fname_log " (and .tar)"
+                            }
                             # Run the 'create backup' command
-                            exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname GENERATING" >> /var/tmp/scriptd.out
-                            exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname GENERATING"
+                            exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log GENERATING" >> /var/tmp/scriptd.out
+                            exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname_log GENERATING"
                             # Delay 1 second to allow proper logging to /var/tmp/scriptd.out
                             exec sleep 1
                             BACKUPCOMMAND $fname BACKUPAPPEND_PASS BACKUPAPPEND_KEYS
-                            exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname SAVED LOCALLY (BACKUPDIRECTORY)" >> /var/tmp/scriptd.out
-                            exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname SAVED LOCALLY (BACKUPDIRECTORY)"
+                            exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log SAVED LOCALLY (BACKUPDIRECTORY)" >> /var/tmp/scriptd.out
+                            exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname_log SAVED LOCALLY (BACKUPDIRECTORY)"
                             # Set the script filename
                             set scriptfile "/var/tmp/f5.automated_backup__TMSHAPPNAME_smb.sh"
                             # Clean, recreate, run and reclean a custom bash script that will perform the SMB upload
                             exec rm -f $scriptfile
-                            exec echo -e "\#\!/bin/sh\nf5masterkey=\$(f5mku -K)\nusername=\$(echo \"ENCRYPTEDUSERNAME\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\npassword=\$(echo \"ENCRYPTEDPASSWORD\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\nmsdomain=\$(echo \"ENCRYPTEDMSDOMAIN\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\nserver=\$(echo \"ENCRYPTEDSERVER\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\nmsshare=\$(echo \"ENCRYPTEDMSSHARE\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\nmssubdir=\$(echo \"ENCRYPTEDMSSUBDIR\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\nmountp=\$(echo \"ENCRYPTEDMOUNTP\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\ncd /var/local/ucs\nif \[ \! -d \${mountp} \]\nthen\n\tmkdir -p \${mountp}\n\tif \[ \$? -ne 0 \]\n\tthen\n\t\trm -f ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT\n\t\texit 1\n\tfi\nfi\nmount -t cifs //\${server}/\${msshare}\${mssubdir} \${mountp} -o user=\${username}%\${password},domain=\${msdomain} 2>> /var/tmp/scriptd.out\nif \[ \$? -ne 0 \]\n\tthen\n\trm -f ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT\n\texit 1\nfi\nfONSMB=\$(ls -t \${mountp}/\*.ucs 2>/dev/null| head -n 1 2>/dev/null)\nif \[ \"X\"\${fONSMB} \!= \"X\" \]\n\tthen\n\tsum1=\$(md5sum ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT | awk '{print \$1}')\n\tsum2=\$(md5sum \${fONSMB} | awk \'{print \$1}\')\n\tif \[ \${sum1} == \${sum2} \]\n\tthen\n\t\techo \"ERROR: File ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT already exists in //\${server}/\${msshare}/\${mssubdir}\" >> /var/tmp/scriptd.out\n\t\tumount \${mountp}\n\t\trm -f ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT\n\t\texit 1\n\tfi\nfi\ncp ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT \${mountp}\nrm -f ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT\n\nif \[ \"PRUNINGMODE\" \!= \"Disabled\" \]; then\n\n\tfiles_tokeep=\$(ls -t \${mountp}/*PRUNINGSUFFIX.BACKUPFILENAMEEXTENSION_NODOT 2>/dev/null | head -n CONSERVE\)\n\tfor current_archive_file in `ls \${mountp}/*PRUNINGSUFFIX.BACKUPFILENAMEEXTENSION_NODOT 2>/dev/null` ; do\n\t\tcurrent_archive_file_basename=`basename \$current_archive_file`\n\t\tcheck_file=\$(echo \$files_tokeep | grep -w \$current_archive_file_basename)\n\t\tif \[ \"\$check_file\" == \"\" \] ; then\n\t\t\trm -f \$current_archive_file\n\t\tfi\n\tdone\n\tif \[ \"BACKUPFILENAMEEXTENSION_NODOT\" == \"scf\" \] ; then\n\t\ttar_files_tokeep=\$(ls -t \${mountp}/*PRUNINGSUFFIX.BACKUPFILENAMEEXTENSION_NODOT.tar 2>/dev/null | head -n CONSERVE\)\n\t\tfor current_archive_tar_file in `ls \${mountp}/*PRUNINGSUFFIX.BACKUPFILENAMEEXTENSION_NODOT.tar 2>/dev/null` ; do\n\t\t\tcurrent_archive_tar_file_basename=`basename \$current_archive_tar_file`\n\t\t\tcheck_file=\$(echo \$tar_files_tokeep | grep -w \$current_archive_tar_file_basename)\n\t\t\tif \[ \"\$check_file\" == \"\" \] ; then\n\t\t\t\trm -f \$current_archive_tar_file\n\t\t\tfi\n\t\tdone\n\tfi\nfi\n\numount \${mountp}\n\nexit 0\n\n" > $scriptfile
+                            exec echo -e "\#\!/bin/sh\nf5masterkey=\$(f5mku -K)\nusername=\$(echo \"ENCRYPTEDUSERNAME\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\npassword=\$(echo \"ENCRYPTEDPASSWORD\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\nmsdomain=\$(echo \"ENCRYPTEDMSDOMAIN\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\nserver=\$(echo \"ENCRYPTEDSERVER\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\nmsshare=\$(echo \"ENCRYPTEDMSSHARE\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\nmssubdir=\$(echo \"ENCRYPTEDMSSUBDIR\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\nmountp=\$(echo \"ENCRYPTEDMOUNTP\" | openssl aes-256-ecb -salt -a -A -d -k \${f5masterkey})\ncd BACKUPDIRECTORY\nif \[ \! -d \${mountp} \]\nthen\n\tmkdir -p \${mountp}\n\tif \[ \$? -ne 0 \]\n\tthen\n\t\trm -f ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT*\n\t\texit 1\n\tfi\nfi\nmount -t cifs //\${server}/\${msshare}\${mssubdir} \${mountp} -o user=\${username}%\${password},domain=\${msdomain} 2>> /var/tmp/scriptd.out\nif \[ \$? -ne 0 \]\n\tthen\n\techo \"DEBUG: Failed to mount //\${server}/\${msshare}\${mssubdir}\ to \${mountp}\" >> /var/tmp/scriptd.out\n\trm -f ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT*\n\texit 1\nelse\n\techo \"DEBUG: Successfully mounted //\${server}/\${msshare}\${mssubdir}\ to \${mountp}\" >> /var/tmp/scriptd.out\nfi\n\nlatestFileOnSMB=\$(ls -t \${mountp}/\*.BACKUPFILENAMEEXTENSION_NODOT 2>/dev/null| head -n 1 2>/dev/null)\necho \"DEBUG: Latest BACKUPFILENAMEEXTENSION_NODOT file found on SMB mount: \$latestFileOnSMB\" >> /var/tmp/scriptd.out\n\nif \[ \"X\"\${latestFileOnSMB} \!= \"X\" \]\n\tthen\n\tsum1=\$(md5sum ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT | awk '{print \$1}')\n\tsum2=\$(md5sum \${latestFileOnSMB} | awk \'{print \$1}\')\n\tif \[ \${sum1} == \${sum2} \]\n\tthen\n\t\techo \"ERROR: File ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT already exists in //\${server}/\${msshare}\${mssubdir}\" >> /var/tmp/scriptd.out\n\t\tumount \${mountp}\n\t\trm -f ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT*\n\t\texit 1\n\telse\n\t\techo \"DEBUG: File ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT does not already exist in //\${server}/\${msshare}\${mssubdir} (continuing...)\" >> /var/tmp/scriptd.out\n\tfi\nelse\n\techo \"DEBUG: Destination SMB mount contains no BACKUPFILENAMEEXTENSION_NODOT files (continuing...)\" >> /var/tmp/scriptd.out\nfi\ncp ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT* \${mountp}\nrm -f ${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT*\n\nif \[ \"PRUNINGMODE\" \!= \"Disabled\" \]; then\n\n\tfiles_tokeep=\$(ls -t \${mountp}/*PRUNINGSUFFIX.BACKUPFILENAMEEXTENSION_NODOT 2>/dev/null | head -n CONSERVE\)\n\tfor current_archive_file in `ls \${mountp}/*PRUNINGSUFFIX.BACKUPFILENAMEEXTENSION_NODOT 2>/dev/null` ; do\n\t\tcurrent_archive_file_basename=`basename \$current_archive_file`\n\t\tcheck_file=\$(echo \$files_tokeep | grep -w \$current_archive_file_basename)\n\t\tif \[ \"\$check_file\" == \"\" \] ; then\n\t\t\trm -f \$current_archive_file\n\t\tfi\n\tdone\n\tif \[ \"BACKUPFILENAMEEXTENSION_NODOT\" == \"scf\" \] ; then\n\t\ttar_files_tokeep=\$(ls -t \${mountp}/*PRUNINGSUFFIX.BACKUPFILENAMEEXTENSION_NODOT.tar 2>/dev/null | head -n CONSERVE\)\n\t\tfor current_archive_tar_file in `ls \${mountp}/*PRUNINGSUFFIX.BACKUPFILENAMEEXTENSION_NODOT.tar 2>/dev/null` ; do\n\t\t\tcurrent_archive_tar_file_basename=`basename \$current_archive_tar_file`\n\t\t\tcheck_file=\$(echo \$tar_files_tokeep | grep -w \$current_archive_tar_file_basename)\n\t\t\tif \[ \"\$check_file\" == \"\" \] ; then\n\t\t\t\trm -f \$current_archive_tar_file\n\t\t\tfi\n\t\tdone\n\tfi\nfi\n\numount \${mountp}\n\nexit 0\n" > $scriptfile
                             exec chmod +x $scriptfile
                             if { "PRUNINGMODE" ne "Disabled" } {
-                                exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY and PRUNING (SMB/CIFS) STARTING" >> /var/tmp/scriptd.out
-                                exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY and PRUNING (SMB/CIFS) STARTING"
+                                exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log REMOTE COPY and PRUNING (SMB/CIFS) STARTING" >> /var/tmp/scriptd.out
+                                exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname_log REMOTE COPY and PRUNING (SMB/CIFS) STARTING"
                             } else {
-                                exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY (SMB/CIFS) STARTING" >> /var/tmp/scriptd.out
-                                exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY (SMB/CIFS) STARTING"
+                                exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log REMOTE COPY (SMB/CIFS) STARTING" >> /var/tmp/scriptd.out
+                                exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname_log REMOTE COPY (SMB/CIFS) STARTING"
                             }
                             if { [catch {exec $scriptfile}] } {
-                                exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY (SMB/CIFS) FAILED (check for errors above)" >> /var/tmp/scriptd.out
-                                exec logger -p local0.crit "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY (SMB/CIFS) FAILED (see /var/tmp/scriptd.out for errors)"
+                                exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log REMOTE COPY (SMB/CIFS) FAILED (check for errors above)" >> /var/tmp/scriptd.out
+                                exec logger -p local0.crit "f5.automated_backup iApp TMSHAPPNAME: $fname_log REMOTE COPY (SMB/CIFS) FAILED (see /var/tmp/scriptd.out for errors)"
                             } else {
-                                exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY (SMB/CIFS) SUCCEEDED" >> /var/tmp/scriptd.out
-                                exec logger -p local0.notice "f5.automated_backup iApp TMSHAPPNAME: $fname REMOTE COPY (SMB/CIFS) SUCCEEDED"
+                                exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log REMOTE COPY (SMB/CIFS) SUCCEEDED" >> /var/tmp/scriptd.out
+                                exec logger -p local0.notice "f5.automated_backup iApp TMSHAPPNAME: $fname_log REMOTE COPY (SMB/CIFS) SUCCEEDED"
                             }
                             # Clean up local files
                             exec rm -f $scriptfile
-                            exec rm -f BACKUPDIRECTORY/${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT
+                            # Calling /bin/sh is required due to wildcard which is required to clean up SCF (and .tar)
+                            exec /bin/sh -c "rm -f BACKUPDIRECTORY/${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT*"
                             exec echo "f5.automated_backup iApp TMSHAPPNAME: FINISHED" >> /var/tmp/scriptd.out
                             exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: FINISHED"
                         }
@@ -347,13 +366,17 @@ sys application template /Common/f5.automated_backup.v3.1.5 {
                             # Form the filename for the backup
                             set fname "${cdate}BACKUPFILENAMEEXTENSION_WITHDOT"
                             # Run the 'create backup' command
-                            exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname GENERATING" >> /var/tmp/scriptd.out
-                            exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname GENERATING"
+                            set fname_log $fname
+                            if { "BACKUPFILENAMEEXTENSION_NODOT" eq "scf" } {
+                                append fname_log " (and .tar)"
+                            }
+                            exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log GENERATING" >> /var/tmp/scriptd.out
+                            exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname_log GENERATING"
                             # Delay 1 second to allow proper logging to /var/tmp/scriptd.out
                             exec sleep 1
                             BACKUPCOMMAND $fname BACKUPAPPEND_PASS BACKUPAPPEND_KEYS
-                            exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname SAVED LOCALLY (BACKUPDIRECTORY)" >> /var/tmp/scriptd.out
-                            exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname SAVED LOCALLY (BACKUPDIRECTORY)"
+                            exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log SAVED LOCALLY (BACKUPDIRECTORY)" >> /var/tmp/scriptd.out
+                            exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname_log SAVED LOCALLY (BACKUPDIRECTORY)"
                             exec echo "f5.automated_backup iApp TMSHAPPNAME: FINISHED" >> /var/tmp/scriptd.out
                             exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: FINISHED"
                         }
