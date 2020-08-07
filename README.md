@@ -12,13 +12,11 @@ Daniel Tavernier (tabernarious)
 
 ## Related Posts
 * https://github.com/tabernarious/f5-automated-backup-iapp
-* https://devcentral.f5.com/codeshare/f5-iapp-automated-backup-1114
-* https://devcentral.f5.com/articles/f5-automated-backups-the-right-way
-* https://devcentral.f5.com/articles/f5-automated-backups-the-right-way
-* https://devcentral.f5.com/codeshare/complete-f5-automated-backup-solution?lc=1
-* https://devcentral.f5.com/codeshare/complete-f5-automated-backup-solution-2-957
-* https://devcentral.f5.com/questions/automated-backup-solution
-* https://devcentral.f5.com/codeshare?sid=285
+* https://devcentral.f5.com/s/articles/f5-iapp-automated-backup-1114
+* https://devcentral.f5.com/s/articles/f5-automated-backups-the-right-way
+* https://devcentral.f5.com/s/articles/complete-f5-automated-backup-solution
+* https://devcentral.f5.com/s/articles/complete-f5-automated-backup-solution-2-957
+* https://devcentral.f5.com/s/feed/0D51T00006i7Y72SAE
 
 ## Original v1.x.x and v2.x.x Features Kept (copied from an original post)
 * It allows you to choose between both UCS or SCF as backup-types. (whilst providing ample warnings about SCF not being a very good restore-option due to the incompleteness in some cases)
