@@ -11,12 +11,22 @@ Cheers!
 Daniel Tavernier (tabernarious)
 
 ## Related Posts
-* https://github.com/tabernarious/f5-automated-backup-iapp
-* https://devcentral.f5.com/s/articles/f5-iapp-automated-backup-1114
-* https://devcentral.f5.com/s/articles/f5-automated-backups-the-right-way
-* https://devcentral.f5.com/s/articles/complete-f5-automated-backup-solution
-* https://devcentral.f5.com/s/articles/complete-f5-automated-backup-solution-2-957
-* https://devcentral.f5.com/s/feed/0D51T00006i7Y72SAE
+* Git Repository for f5-automated-backup-iapp (Daniel Tavernier/tabernarious)
+    * https://github.com/tabernarious/f5-automated-backup-iapp
+* F5 iApp Automated Backup (Daniel Tavernier/tabernarious)
+    * https://devcentral.f5.com/s/articles/f5-iapp-automated-backup-1114
+* F5 Automated Backups - The Right Way (Thomas Schockaert)
+    * https://devcentral.f5.com/s/articles/f5-automated-backups-the-right-way
+* Complete F5 Automated Backup Solution (Thomas Schockaert)
+    * https://devcentral.f5.com/s/articles/complete-f5-automated-backup-solution
+* Complete F5 Automated Backup Solution #2 (MAG 114141)
+    * https://devcentral.f5.com/s/articles/complete-f5-automated-backup-solution-2-957
+* Automated Backup Solution
+    * https://devcentral.f5.com/questions/automated-backup-solution )
+* Automated Backup Solution
+    * https://devcentral.f5.com/s/feed/0D51T00006i7Y72SAE
+* Generate Config Backup
+    * https://devcentral.f5.com/codeshare?sid=285
 
 ## Original v1.x.x and v2.x.x Features Kept (copied from an original post)
 * It allows you to choose between both UCS or SCF as backup-types. (whilst providing ample warnings about SCF not being a very good restore-option due to the incompleteness in some cases)
@@ -49,3 +59,13 @@ Daniel Tavernier (tabernarious)
 * Added custom cipher option for SCP! (In case BIG-IP and the destination server are not cipher-compatible out of the box.)
 * Added StrictHostKeyChecking=no option. (This is insecure and should only be used for testing--lots of warnings.)
 * Combined SCP and SFTP because they are both using SCP to perform the remote copy. (Easier to maintain!)
+
+# Known Issues, Request, and Other Notes
+* F5 TMOS 11.4.1 - 11.5.3 have not been tested (they may work).
+* Using a 4096 bit private key for SFTP/SCP results in error "Unable to decrypt text of length (4338) which exceeds the max of (4048)" which may be an iApp bug/limitation of fields designated as type "password". (github Issue #12)
+    * Could add a second field to accept part of the key, then combine the values.
+    * Could use something like this to pull the key from the F5 filestore (though this would result in the key being accessible via the GUI). This might even work with encrypted keys: grep "sys file ssl-key /Common/KEY-NAME.key" -A1 /config/bigip.conf |tail -1 |sed 's/    cache-path //'
+* Reported issues with FTP (sending archive before finished or corrupting?) (github Issue #15)
+* Reported issues with SMB from v12.x to Windows Server 2012 (github Issue #17)
+* Add automatic pruning for FTP and SFTP/SCP.
+    * Use "dir -t" or "nlist -t" commands to pull file list...
