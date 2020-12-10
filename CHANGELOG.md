@@ -3,7 +3,8 @@
 ## v3.1.11 (20201210)
 * Better handling of UCS passphrases, and notes about characters to avoid.
     * I successfully tested this exact passphrase in the 13.1.3.4 CLI (surrounded with single quote) and GUI (as-is): `~!@#$%^*()aB1-_=+[{]}:./?
-    * Though there may be situations these could work, avoid these characters (separated by spaces): " ' & | ; < > \
+    * I successfully tested this exact passphrase in 14.1.3 (square-braces and curly-braces would not work): `~!@#$%^*()aB1-_=+:./?
+    * Though there may be situations these could work, avoid these characters (separated by spaces): " ' & | ; < > \ [ ] { } ,
 * Moved changelog and notes from the template to CHANGELOG.md and README.md.
 * Replaced all tabs (\t) with four spaces.
 
