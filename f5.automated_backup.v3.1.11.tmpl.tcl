@@ -469,6 +469,8 @@ sys application template /Common/f5.automated_backup.v3.1.11 {
                     optional ( backup_passphrase_select == "Yes" ) {
                         message backup_help_passphrase "WARNING: Losing the passphase will render the archives unusable. The encrypted archive will be a PGP encoded file, *not* simply a tar.gz with a password on it."
                         password backup_passphrase required display "large"
+                        message backup_help_passphrase2 "Many special characters are supported as of iApp v3.1.11 (DO NOT use backslash escaping). To be safe (as of 14.1.3), do not use: comma, single-quote, double-quote, ampersand, pipe, semicolon, greater-than, less-than, backslash, square-braces, or curly-braces."
+                        message backup_help_passphrase3 "TMOS 14.1.3 supports less special characters for UCS passphrases (at least via iCall) than 13.1.3.4."
                     }
                     optional ( backup_type_select == "UCS (User Configuration Set)" ) {
                         choice backup_includeprivatekeys display "small" { "Yes", "No" }
@@ -641,6 +643,8 @@ sys application template /Common/f5.automated_backup.v3.1.11 {
                     backup_type.backup_help_scf ""
                     backup_type.backup_help_scf2 ""
                     backup_type.backup_help_passphrase ""
+                    backup_type.backup_help_passphrase2 ""
+                    backup_type.backup_help_passphrase3 ""
                     backup_type.backup_help_privatekeys_ucs ""
                     backup_type.backup_help_privatekeys_scf ""
                     backup_type.backup_help_restore_scf ""
