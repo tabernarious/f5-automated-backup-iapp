@@ -60,10 +60,12 @@ sftp_function()
 	echo put BACKUPDIRECTORY/${fname_noext}BACKUPFILENAMEEXTENSION_WITHDOT* | sftp -b- -i /var/tmp/TMSHAPPNAME_sftp.key SFTPCIPHER SFTPSTRICTHOSTKEYCHECKING \${username}@\${server}:./\${directory}
 	sftp_result=\$?
 	rm -f /var/tmp/TMSHAPPNAME_sftp.key
+	echo \$sftp_result \> /var/tmp/.x
 	return \$sftp_result
 }
 
 sftp_function
+	echo \$? \> /var/tmp/.y
 
 ==========
 FTP
