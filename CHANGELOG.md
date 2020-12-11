@@ -5,10 +5,6 @@
 * Tweaked the SCP and SFTP upload directory handling; detailed instructions are in the iApp.
 * Tested on 13.1.3.4 and 14.1.3
 
-## v3.2.0 (20190620)
-Developed on a fork of v3.1.9 by damnski (darryl.wisneski@yale.edu)
-* Add support for SFTP (separately from SCP) - use-case is AWS Transfers (SFTP) that only supports the SFTP protocol - tested on 14.1.0.1
-
 ## v3.1.11 (20201210)
 * Better handling of UCS passphrases, and notes about characters to avoid.
     * I successfully tested this exact passphrase in the 13.1.3.4 CLI (surrounded with single quote) and GUI (as-is): `~!@#$%^*()aB1-_=+[{]}:./?
@@ -20,6 +16,10 @@ Developed on a fork of v3.1.9 by damnski (darryl.wisneski@yale.edu)
 ## v3.1.10 (20201209)
 * Added SMB Version and SMB Security options to support v14+ and newer versions of Microsoft Windows and Windows Server.
 * Tested SMB/CIFS on 13.1.3.4 and 14.1.3 against Windows Server 2019 using "2.0" and "ntlmsspi"
+
+## v3.2.0-fork (20190620)
+Developed on a fork of v3.1.9 by damnski (darryl.wisneski@yale.edu)
+* Add support for SFTP (separately from SCP) - use-case is AWS Transfers (SFTP) that only supports the SFTP protocol - tested on 14.1.0.1
 
 ## v3.1.9 (20181120)
 * Fixed comment in SMB/CIFS script which was breaking everything due hash escape and a variable reference--I must not have actually tested after I added the comment :(
