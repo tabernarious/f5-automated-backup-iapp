@@ -3,7 +3,7 @@
 ## v3.2.1 (20201210)
 * Merged v3.1.11 and v3.2.0 for explicit SFTP support (separate from SCP).
 * Tweaked the SCP and SFTP upload directory handling; detailed instructions are in the iApp.
-* Tested on 13.1.3.4 and 14.1.3
+* Tested on 13.1.3.4 and 14.1.3 and 16.0.1
 
 ## v3.1.11 (20201210)
 * Better handling of UCS passphrases, and notes about characters to avoid.
