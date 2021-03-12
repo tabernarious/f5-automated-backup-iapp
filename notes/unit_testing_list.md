@@ -173,3 +173,64 @@ p+hpAQKBgBCGA+Tq9XEyZXV2PHf+1KHOPuX+ejuJBTIuq+eEAXL32DPshsHlqZEi
 Ex3kvwxDMlKdmHN1YGGJkMWfYPykuvAznjeMTxd2bPSyu38kRZLfELxjGeVV3q9F
 N2d4M5rYtcMsnlaK1s7Fc/RTvqj6UDHKfhP3X8iYiDA3lXR5Mewl
 -----END RSA PRIVATE KEY-----
+
+-----BEGIN
+OPENSSH
+PRIVATE
+KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABFwAAAAdzc2gtcn
+NhAAAAAwEAAQAAAQEAr9YjWfpAUQXrzuzLQnFvtg7J5WaAG0dnpFSXgcNKQoYZt+Ylm8Cn
+zxbD+jPltR34D2SN3Ro4HXs2HtSYrDQTGyIAIp6bodiVEJJRsJRW1Lks7ZQNUs/kTiIRs6
+WQY+b9nRp83PJZ19ugHPXmAdRCz4E/2OvZiIMlNc18NyXw364iMfbW1w7WCm6asjpNKxtb
+hVOeM8DunAX+8WHzuTl3oUH1B4XgllDSkomoh+3aQpy9xTtj7sOYyGKWbygVKU1bHYccdK
+63ZmBISaaB9NeuPVso/qdfAYUEbFoFWReuj0E2LkJzArlYKxYiWyj2C4enVbKKpv94Oz1I
+dEzYVdqoSwAAA8iFfdP1hX3T9QAAAAdzc2gtcnNhAAABAQCv1iNZ+kBRBevO7MtCcW+2Ds
+nlZoAbR2ekVJeBw0pChhm35iWbwKfPFsP6M+W1HfgPZI3dGjgdezYe1JisNBMbIgAinpuh
+2JUQklGwlFbUuSztlA1Sz+ROIhGzpZBj5v2dGnzc8lnX26Ac9eYB1ELPgT/Y69mIgyU1zX
+w3JfDfriIx9tbXDtYKbpqyOk0rG1uFU54zwO6cBf7xYfO5OXehQfUHheCWUNKSiaiH7dpC
+nL3FO2Puw5jIYpZvKBUpTVsdhxx0rrdmYEhJpoH01649Wyj+p18BhQRsWgVZF66PQTYuQn
+MCuVgrFiJbKPYLh6dVsoqm/3g7PUh0TNhV2qhLAAAAAwEAAQAAAQEAkOHw3wLEW/50/ls+
+X9D4KxqkYNDEXbXIQC8zZ0hyt72nE1AfTObBXnFzqYV5kHLRIl3IRpaEBkavoVerNLjzxT
+eOxPfLZOAAc1cc2FJh+YVa76c+Ey4ZAAgybcPN5YM/FWPt3mAShzoAA9zZWEh9hF0LLsGm
+zETDNEHMR+SLRMHo3Tj1W6vlz09ZX1bYqweva5twdJW/k1eVycMIB0SykCi+FAPVUARArS
+BjKw9lk2ZI3Sb3/PWYohW+mDacprkl8WIZScVFoARH3cw2LjR9wlGWA6u8jxHFN9aWOMP3
+uJWxEY1cA5pYpa5N/TzlShjkESVI9ULvYLnFk+PBnBY5gQAAAIEArvpBHI5bnEwfkzv7Wu
+n/f1goBD/5O7tXcDjFUo8kbrxUTyUPSWQRBCy/lkL/CJ5ItfqsyLuQg6JcPj6SeBeTopwD
+umiIVj+A7meciIen8lddLDZ6GnrnF0JpMISpou0SSFuOXgVjQeHrvH/HasD/ox7bO8oDJY
+77LPnvCaZ9z3UAAACBANd2y7HopJMgKvbpv8Z9CjWDwWcPElWOKJR4XoP+5QaSeXVsIE8g
+cDu1xEdKJEaJezPdXfajRot9y3ML81kjrGPCici03DE9zt7JxIL4nVHY+4+Zoo2BpskDz1
+7wVUIFed9vUpWpsk2TDYuUjIIVr/aM9QSALaChyAakKyRMdnW9AAAAgQDQ6st7m6eeVtwP
+kydawLmQ3aRJbGiRH1pM9b929fcFeg9aOjiyDvoSfo7XSdXwGPOXFnBT3aqcxEOyrm0lKl
+BGkhiB4wZCBLgPJm8jMWzluj2nZvuQNzW+qZEH4cVN1aSNjWnFJX5zMYZVfQ8hBWaaqeZv
+pkUw3Baj0x8ZJd/ipwAAAA5tYXJpeWFtQGx4anVtcAECAw==
+-----END
+OPENSSH
+PRIVATE
+KEY-----
+
+## Testing Keys
+
+f5masterkey=$(f5mku -K)
+echo $f5masterkey
+
+keyfilepath="/var/tmp/backup_3.2.2_test_sftp4.key"
+echo ${keyfilepath}
+
+echo "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" | openssl aes-256-ecb -salt -a -A -d -k ${f5masterkey} > ${keyfilepath}
+cat ${keyfilepath}
+
+keyfilelinecount=$(wc -l ${keyfilepath} |awk '{print $1}')
+echo ${keyfilelinecount}
+
+
+awk 'NR==1, NR==4 {print $0}' ORS=' ' ${keyfilepath} > ${keyfilepath}.tmp
+echo >> ${keyfilepath}.tmp
+awk -v count="${keyfilelinecount}" 'NR==5, NR==count-4 {print $0}' ${keyfilepath} >> ${keyfilepath}.tmp
+awk -v count="${keyfilelinecount}" 'NR==count-3, NR==count {print $0}' ORS=' ' ${keyfilepath} >> ${keyfilepath}.tmp
+echo >> ${keyfilepath}.tmp
+cat ${keyfilepath}.tmp
+mv -f ${keyfilepath}.tmp ${keyfilepath}
+cat ${keyfilepath}.tmp
+cat ${keyfilepath}
+
+echo put /var/tmp/test.txt | sftp -b- -i /var/tmp/backup_3.2.2_test_sftp.key -c chacha20-poly1305@openssh.com -o StrictHostKeyChecking=yes  mariyam@10.204.136.10:./
