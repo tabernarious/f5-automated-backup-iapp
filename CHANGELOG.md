@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## v3.2.2 (20210312)
+* Added ability to set "ssh options" for SCP and SFTP (e.g. KexAlgorithm)
+* Added support for keys with "BEGIN OPENSSH PRIVATE KEY" headers.
+
 ## v3.2.1 (20201210)
 * Merged v3.1.11 and v3.2.0 for explicit SFTP support (separate from SCP).
 * Tweaked the SCP and SFTP upload directory handling; detailed instructions are in the iApp.
