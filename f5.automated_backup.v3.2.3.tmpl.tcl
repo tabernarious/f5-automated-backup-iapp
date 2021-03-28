@@ -1,7 +1,7 @@
 cli admin-partitions {
     update-partition Common
 }
-sys application template /Common/f5.automated_backup.v3.2.2 {
+sys application template /Common/f5.automated_backup.v3.2.3 {
     actions {
         definition {
             html-help {
