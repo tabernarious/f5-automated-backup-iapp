@@ -77,7 +77,7 @@ sys application template /Common/f5.automated_backup.v3.2.2 {
                         set encryptedserver [exec echo "$::destination_parameters__scp_remote_server" | openssl aes-256-ecb -salt -a -A -k ${f5masterkey}]
                         set encrypteddirectory [exec echo "$::destination_parameters__scp_remote_directory" | openssl aes-256-ecb -salt -a -A -k ${f5masterkey}]
                         # Clean the private key data before cleanup
-                        set cleaned_privatekey [exec echo "$::destination_parameters__sftp_sshprivatekey" | sed -e "s/BEGIN RSA PRIVATE KEY/BEGIN;RSA;PRIVATE;KEY/g" -e "s/END RSA PRIVATE KEY/END;RSA;PRIVATE;KEY/g" -e "s/BEGIN OPENSSH PRIVATE KEY/BEGIN;OPENSSH;PRIVATE;KEY/g" -e "s/END OPENSSH PRIVATE KEY/END;OPENSSH;PRIVATE;KEY/g" -e "s/ /\\\n/g" -e "s/;/ /g"]
+                        set cleaned_privatekey [exec echo "$::destination_parameters__scp_sshprivatekey" | sed -e "s/BEGIN RSA PRIVATE KEY/BEGIN;RSA;PRIVATE;KEY/g" -e "s/END RSA PRIVATE KEY/END;RSA;PRIVATE;KEY/g" -e "s/BEGIN OPENSSH PRIVATE KEY/BEGIN;OPENSSH;PRIVATE;KEY/g" -e "s/END OPENSSH PRIVATE KEY/END;OPENSSH;PRIVATE;KEY/g" -e "s/ /\\\n/g" -e "s/;/ /g"]
                         # Encrypt the private key data before dumping to a file
                         set encrypted_privatekey [exec echo "$cleaned_privatekey" | openssl aes-256-ecb -salt -a -A -k ${f5masterkey}]
                         # Set optional cipher for SCP (e.g. aes256-gcm@openssh.com)

@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v3.2.3 (20210327)
+* Fixed a bug (typo) when using SCP, which resulted in 'script did not successfully complete: (can't read "::destination_parameters__sftp_sshprivatekey": no such variable' etc. This was related to adding support for keys with "BEGIN OPENSSH PRIVATE KEY" headers.
+
 ## v3.2.2 (20210312)
 * Added ability to set "ssh options" for SCP and SFTP (e.g. KexAlgorithm)
 * Added support for keys with "BEGIN OPENSSH PRIVATE KEY" headers.
