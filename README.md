@@ -1,6 +1,10 @@
 # f5-automated-backup-iapp
 F5 iApp for automated backups to the local device and to network locations.
 
+## Usage
+* You only need the `f5.automated_backup.v3.2.3.tmpl.tcl` file (or whatever the latest version is). Download this template and import it using the F5 BIG-IP GUI.
+* The `f5.automated_backup.v3.2.3.scripts.sh` file is on a reference to better understand the scripts used in the `tmpl.tcl` file. In the `tmpl.tcl` file the scripts are converted to a single line by replacing tabs with \t and newlines with \n, which makes them very difficult to understand or troubleshoot.
+
 ## Intro
 Building on the significant work of Thomas Schockaert (and several other DevCentralites) I enhanced many aspects I needed for my own purposes, updated many things I noticed requested on the forums, and added additional documentation and clarification. As you may see in several of my comments on the original posts, I iterated through several 2.2.x versions and am now releasing v3.0.0. Below is the breakdown!
 
