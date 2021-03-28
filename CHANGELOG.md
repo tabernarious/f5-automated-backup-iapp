@@ -1,5 +1,8 @@
 # CHANGELOG
 
+## v3.2.4 (20210327)
+* Added an option to set a custom local pruning interval. This used to be fixed at 60 seconds.
+
 ## v3.2.3 (20210327)
 * Fixed a bug (typo) when using SCP, which resulted in 'script did not successfully complete: (can't read "::destination_parameters__sftp_sshprivatekey": no such variable' etc. This was related to adding support for keys with "BEGIN OPENSSH PRIVATE KEY" headers.
 
