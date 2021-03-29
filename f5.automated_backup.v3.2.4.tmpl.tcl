@@ -18,7 +18,7 @@ sys application template /Common/f5.automated_backup.v3.2.4 {
                 set create_backup_command_append_keys ""
                 if { $backup_type eq "UCS (User Configuration Set)" } {
                     set create_backup_command "tmsh::save /sys ucs"
-                    set backup_directory /var/local/ucs
+                    set backup_directory $::backup_type__backup_directory_ucs
                     # Backup passphrase usage
                     if { $::backup_type__backup_passphrase_select eq "Yes" } {
                         set backup_passphrase '$::backup_type__backup_passphrase'
@@ -34,7 +34,7 @@ sys application template /Common/f5.automated_backup.v3.2.4 {
                 }
                 elseif { $backup_type eq "SCF (Single Configuration File)" } {
                     set create_backup_command "tmsh::save /sys config file"
-                    set backup_directory /var/local/scf
+                    set backup_directory $::backup_type__backup_directory_scf
                     set backup_file_name_extension_with_dot ".scf"
                     set backup_file_name_extension_no_dot "scf"
                     # Backup passphrase usage
@@ -118,7 +118,8 @@ sys application template /Common/f5.automated_backup.v3.2.4 {
                             exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname_log GENERATING"
                             # Delay 1 second to allow proper logging to /var/tmp/scriptd.out
                             exec sleep 1
-                            BACKUPCOMMAND $fname BACKUPAPPEND_PASS BACKUPAPPEND_KEYS
+                            exec mkdir -p BACKUPDIRECTORY
+                            BACKUPCOMMAND BACKUPDIRECTORY/$fname BACKUPAPPEND_PASS BACKUPAPPEND_KEYS
                             exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log SAVED LOCALLY (BACKUPDIRECTORY)" >> /var/tmp/scriptd.out
                             exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname_log SAVED LOCALLY (BACKUPDIRECTORY)"
                             # Set the script filename
@@ -150,7 +151,7 @@ sys application template /Common/f5.automated_backup.v3.2.4 {
                         # Swap many variables into $script; due to the curly braces used to initially set $script, any referenced variables will *not* be expanded simply by deploying the iApp.
                         set script [string map [list FORMAT $filename_format BACKUPFILENAMEEXTENSION_WITHDOT $backup_file_name_extension_with_dot BACKUPFILENAMEEXTENSION_NODOT $backup_file_name_extension_no_dot BACKUPDIRECTORY $backup_directory BACKUPCOMMAND $create_backup_command BACKUPAPPEND_PASS $create_backup_command_append_pass BACKUPAPPEND_KEYS $create_backup_command_append_keys TMSHAPPNAME $tmsh::app_name ENCRYPTEDUSERNAME $encryptedusername ENCRYPTEDSERVER $encryptedserver ENCRYPTEDDIRECTORY $encrypteddirectory ENCRYPTEDPRIVATEKEY $encrypted_privatekey SCPCIPHER $scp_cipher SCPSTRICTHOSTKEYCHECKING $scp_stricthostkeychecking SCPSSHOPTIONS $scp_ssh_options ] $script]
                     }
-            elseif { $::destination_parameters__protocol_enable eq "Remotely via SFTP" } {
+                    elseif { $::destination_parameters__protocol_enable eq "Remotely via SFTP" } {
                         # Get the F5 Master key
                         set f5masterkey [exec f5mku -K]
                         # Store the target server information securely, encrypted with the unit key
@@ -199,7 +200,8 @@ sys application template /Common/f5.automated_backup.v3.2.4 {
                             exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname_log GENERATING"
                             # Delay 1 second to allow proper logging to /var/tmp/scriptd.out
                             exec sleep 1
-                            BACKUPCOMMAND $fname BACKUPAPPEND_PASS BACKUPAPPEND_KEYS
+                            exec mkdir -p BACKUPDIRECTORY
+                            BACKUPCOMMAND BACKUPDIRECTORY/$fname BACKUPAPPEND_PASS BACKUPAPPEND_KEYS
                             exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log SAVED LOCALLY (BACKUPDIRECTORY)" >> /var/tmp/scriptd.out
                             exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname_log SAVED LOCALLY (BACKUPDIRECTORY)"
                             # Set the script filename
@@ -259,7 +261,8 @@ sys application template /Common/f5.automated_backup.v3.2.4 {
                             exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname_log GENERATING"
                             # Delay 1 second to allow proper logging to /var/tmp/scriptd.out
                             exec sleep 1
-                            BACKUPCOMMAND $fname BACKUPAPPEND_PASS BACKUPAPPEND_KEYS
+                            exec mkdir -p BACKUPDIRECTORY
+                            BACKUPCOMMAND BACKUPDIRECTORY/$fname BACKUPAPPEND_PASS BACKUPAPPEND_KEYS
                             exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log SAVED LOCALLY (BACKUPDIRECTORY)" >> /var/tmp/scriptd.out
                             exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname_log SAVED LOCALLY (BACKUPDIRECTORY)"
                             # Set the config file
@@ -338,7 +341,8 @@ sys application template /Common/f5.automated_backup.v3.2.4 {
                             exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname_log GENERATING"
                             # Delay 1 second to allow proper logging to /var/tmp/scriptd.out
                             exec sleep 1
-                            BACKUPCOMMAND $fname BACKUPAPPEND_PASS BACKUPAPPEND_KEYS
+                            exec mkdir -p BACKUPDIRECTORY
+                            BACKUPCOMMAND BACKUPDIRECTORY/$fname BACKUPAPPEND_PASS BACKUPAPPEND_KEYS
                             exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log SAVED LOCALLY (BACKUPDIRECTORY)" >> /var/tmp/scriptd.out
                             exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname_log SAVED LOCALLY (BACKUPDIRECTORY)"
                             # Set the script filename
@@ -393,7 +397,8 @@ sys application template /Common/f5.automated_backup.v3.2.4 {
                             exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname_log GENERATING"
                             # Delay 1 second to allow proper logging to /var/tmp/scriptd.out
                             exec sleep 1
-                            BACKUPCOMMAND $fname BACKUPAPPEND_PASS BACKUPAPPEND_KEYS
+                            exec mkdir -p BACKUPDIRECTORY
+                            BACKUPCOMMAND BACKUPDIRECTORY/$fname BACKUPAPPEND_PASS BACKUPAPPEND_KEYS
                             exec echo "f5.automated_backup iApp TMSHAPPNAME: $fname_log SAVED LOCALLY (BACKUPDIRECTORY)" >> /var/tmp/scriptd.out
                             exec logger -p local0.info "f5.automated_backup iApp TMSHAPPNAME: $fname_log SAVED LOCALLY (BACKUPDIRECTORY)"
                             exec echo "f5.automated_backup iApp TMSHAPPNAME: FINISHED" >> /var/tmp/scriptd.out
@@ -569,11 +574,17 @@ sys application template /Common/f5.automated_backup.v3.2.4 {
                         optional ( backup_includeprivatekeys == "No" ) {
                             message backup_help_privatekeys_ucs "WARNING: A UCS archive that does not contain the private keys CANNOT be used for restoring the device. It should be used for transfers to external services to whom you do not wish to disclose the private keys."
                         }
+                        string backup_directory_ucs default "/var/local/ucs" display "large"
+                        message backup_directory_ucs_help "Default directory is '/var/local/ucs', other options are '/var/tmp', '/shared/tmp', or a custom directory."
                     }
                     optional ( backup_type_select == "SCF (Single Configuration File)" ) {
                         message backup_help_privatekeys_scf "PRIVATE KEY WARNING: The tar files created alongside each SCF flat-text archive will contain sensitive files such as SSL private keys."
                         message backup_help_restore_scf "SCF RESTORE WARNING: An SCF flat-text archive without the accompanying tar file CANNOT be used for restoring the device."
+                        string backup_directory_scf default "/var/local/scf" display "large"
+                        message backup_directory_scf_help "Default directory is '/var/local/scf', other options are '/var/tmp', '/shared/tmp', or a custom directory."
                     }
+                    message backup_directory_help2 "For backups copied to remote destinations, backups will be created here, copied remotely, then deleted."
+                    message backup_directory_help3 "WARNING: Directory must exist or backups will fail."
                 }
                 section backup_schedule {
                     choice frequency_select display "large" { "Disable", "Every X Minutes", "Every X Hours", "Every X Days", "Every X Weeks", "Every X Months", "Custom" }
@@ -740,7 +751,8 @@ sys application template /Common/f5.automated_backup.v3.2.4 {
                             message pruning_mode_help_iapp "Only Prune iApp-Generated Archives: Archives generated by this iApp will contain the Unique Pruning Suffix (defined below) so that files generated manually or by other iApps (e.g. when uploaded to a common network share) should not be pruned by this iApp. NOTE: The Unique Pruning Suffix is shared with HA peers, which should be fine as long has the Filename Format includes ${host}."
                             optional ( protocol_enable == "On this F5" ) {
                                 message pruning_mode_help_all_local "Prune All Archives: WARNING--This iApp will delete all but the 'newest X Archives' in /var/local/ucs, even if the Archives were generated manually or by a second copy of this iApp."
-                                editchoice pruning_mode_custom_interval default "60" display "medium" { "60", "300", "3600", "86400" }
+                                editchoice pruning_mode_custom_interval default "86400" display "small" { "60", "300", "3600", "86400", "604800" }
+                                message pruning_mode_custom_interval_help "How often to clean up (prune) extra backups: 60s = every minute, 300s = every 5 minutes, 3600s = once per hour, 86400s = once per day, 604800s = once per week, (or type a custom number of seconds)."
                             }
                             optional ( protocol_enable == "Remotely via SMB/CIFS" ) {
                                 message pruning_mode_help_all_smb "Prune All Archives: WARNING--This iApp will delete all but the 'newest X Archives' in the mounted directory (e.g. //SERVER/SHARE/PATH/DIRECTORY), even if the Archives were copied there manually, by another copy of this iApp running on this BIG-IP, by another BIG-IP, etc.."
@@ -772,6 +784,12 @@ sys application template /Common/f5.automated_backup.v3.2.4 {
                     backup_type.backup_help_privatekeys_ucs ""
                     backup_type.backup_help_privatekeys_scf ""
                     backup_type.backup_help_restore_scf ""
+                    backup_type.backup_directory_ucs "Local directory to store backups:"
+                    backup_type.backup_directory_ucs_help ""
+                    backup_type.backup_directory_scf "Local directory to store backups:"
+                    backup_type.backup_directory_scf_help ""
+                    backup_type.backup_directory_help2 ""
+                    backup_type.backup_directory_help3 ""
                     backup_schedule "Backup Schedule"
                     backup_schedule.frequency_select "Frequency:"
                     backup_schedule.everyxminutes_value "Where X equals:"
@@ -874,6 +892,7 @@ sys application template /Common/f5.automated_backup.v3.2.4 {
                     destination_parameters.pruning_mode_help_iapp ""
                     destination_parameters.pruning_mode_help_all_local ""
                     destination_parameters.pruning_mode_custom_interval "Local Pruning Interval (seconds):"
+                    destination_parameters.pruning_mode_custom_interval_help ""
                     destination_parameters.pruning_mode_help_all_smb ""
                     destination_parameters.pruning_mode_help_smb ""
                     destination_parameters.pruning_suffix "Unique Filename Suffix:"
