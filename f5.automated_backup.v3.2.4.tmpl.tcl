@@ -535,13 +535,13 @@ sys application template /Common/f5.automated_backup.v3.2.4 {
                                 exec rm -f $scriptfile
                             }
                             set script [string map [list CONSERVE $prune_conserve PRUNINGSUFFIX $pruning_suffix BACKUPDIRECTORY $backup_directory BACKUPFILENAMEEXTENSION_NODOT $backup_file_name_extension_no_dot] $script]
-                            iapp::conf create sys icall script f5.automated_backup__${tmsh::app_name}_pruning definition \{ $script \}
+                            iapp::conf create sys icall script f5.automated_backup__${tmsh::app_name}-localpruning definition \{ $script \}
                             set cdate [clock format [clock seconds] -format "%Y-%m-%d:%H:%M"]
                             # Interval can be increased as needed if pruning every minute is problematic
-                            iapp::conf create sys icall handler periodic f5.automated_backup__${tmsh::app_name}_pruning-handler \{ \
+                            iapp::conf create sys icall handler periodic f5.automated_backup__${tmsh::app_name}-localpruning-handler \{ \
                             interval $::destination_parameters__pruning_mode_custom_interval \
                             first-occurrence $cdate:00 \
-                            script f5.automated_backup__${tmsh::app_name}_pruning \}
+                            script f5.automated_backup__${tmsh::app_name}-localpruning \}
                         }
                     }
                 }
