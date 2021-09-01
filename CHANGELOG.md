@@ -4,6 +4,7 @@
 * Added an option to set a custom local pruning interval. This used to be fixed at 60 seconds.
 * Added an option to set a custom directory to save archives.
 * Fixed SSH options for SCP.
+* Limited use of filename suffix to SMB/CIFS and Local (the only modes where pruning is available).
 
 ## v3.2.3 (20210327)
 * Fixed a bug (typo) when using SCP, which resulted in 'script did not successfully complete: (can't read "::destination_parameters__sftp_sshprivatekey": no such variable' etc. This was related to adding support for keys with "BEGIN OPENSSH PRIVATE KEY" headers.
