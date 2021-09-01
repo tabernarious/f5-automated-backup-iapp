@@ -64,7 +64,7 @@ sys application template /Common/f5.automated_backup.v3.2.4 {
                     }
 
                     # Add $pruning_suffix if needed
-                    if { [info exists ::destination_parameters__pruning_mode] && ($::destination_parameters__pruning_mode eq "Only Prune iApp-Generated Archives") } {
+                    if { [info exists ::destination_parameters__pruning_mode] && ($::destination_parameters__pruning_mode eq "Only Prune iApp-Generated Archives") && ($::destination_parameters__protocol_enable eq "Remotely via SMB/CIFS" || $::destination_parameters__protocol_enable eq "On this F5") } {
                         set pruning_suffix $::destination_parameters__pruning_suffix
                         append filename_format "_" ${pruning_suffix}
                     }
