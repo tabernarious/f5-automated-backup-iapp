@@ -2,8 +2,8 @@
 F5 iApp for automated backups to the local device and to network locations.
 
 ## Usage
-* You only need the `f5.automated_backup.v3.2.3.tmpl.tcl` file (or whatever the latest version is). Download this template and import it using the F5 BIG-IP GUI.
-* The `f5.automated_backup.v3.2.3.scripts_reference.sh` file is on a reference to better understand the scripts used in the `tmpl.tcl` file. In the `tmpl.tcl` file the scripts are converted to a single line by replacing tabs with \t and newlines with \n, which makes them very difficult to understand or troubleshoot.
+* You only need the `f5.automated_backup.v3.2.4.tmpl.tcl` file (or whatever the latest version is). Download this template and import it using the F5 BIG-IP GUI.
+* The scripts folder contains pretty versions of the scripts used in the iApp template.
 
 ## Intro
 Building on the significant work of Thomas Schockaert (and several other DevCentralites) I enhanced many aspects I needed for my own purposes, updated many things I noticed requested on the forums, and added additional documentation and clarification. As you may see in several of my comments on the original posts, I iterated through several 2.2.x versions and am now releasing v3.0.0. Below is the breakdown!
@@ -69,7 +69,5 @@ Daniel Tavernier (tabernarious)
 * Using a 4096 bit private key for SFTP/SCP results in error "Unable to decrypt text of length (4338) which exceeds the max of (4048)" which may be an iApp bug/limitation of fields designated as type "password". (github Issue #12)
     * Could add a second field to accept part of the key, then combine the values.
     * Could use something like this to pull the key from the F5 filestore (though this would result in the key being accessible via the GUI). This might even work with encrypted keys: grep "sys file ssl-key /Common/KEY-NAME.key" -A1 /config/bigip.conf |tail -1 |sed 's/    cache-path //'
-* Reported issues with FTP (sending archive before finished or corrupting?) (github Issue #15)
-* Reported issues with SMB from v12.x to Windows Server 2012 (github Issue #17)
 * Add automatic pruning for FTP and SFTP/SCP.
     * Use "dir -t" or "nlist -t" commands to pull file list...
